@@ -3464,8 +3464,7 @@ elif menu == "⚙️ Configuración de Análisis":
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Error al eliminar: {e}")
-                                    except Exception as e:
-                                        st.error(f"Error al eliminar: {e}")
+
                 
             with t_resp:
                 st.subheader("✍️ Respuestas / Comentarios Fijos para Informes")
