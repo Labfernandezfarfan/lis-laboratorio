@@ -3404,56 +3404,53 @@ elif menu == "⚙️ Configuración de Análisis":
                     cur.execute("DELETE FROM obras_sociales WHERE id = ?", (os_id,))
                     conn.commit(); conn.close()
                     st.rerun()
-            with t_med:
-                st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
-                import time
+        with t_med:
+            st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
+            with st.form("form_gestion_medicos_registro_unico_v2"):
 
-                # Esto genera una clave con los milisegundos actuales, haciéndola 100% única siempre
-                with st.form(f"form_gestion_medicos_registro_unico_{time.time()}"):
-
-                    nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
-                    nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
-                    btn_crear = st.form_submit_button("💾 Agregar Nuevo Médico")
-                    
-                    if btn_crear:
-                        if nuevo_nom:
-                            try:
-                                with engine.begin() as connection:
-                                    connection.execute(
-                                        text("INSERT INTO medicos (nombre, matricula) VALUES (:nombre, :matricula)"),
-                                        {"nombre": nuevo_nom.upper(), "matricula": nuevo_mat}
-                                    )
-                                st.success("¡Médico agregado con éxito!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error al guardar: {e}")
-                        else:
-                            st.warning("⚠️ Debes ingresar el nombre del médico.")
-                    
-                st.markdown("---")
-                st.markdown("##### Listado de Médicos Registrados")
+                nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
+                nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
+                btn_crear = st.form_submit_button("💾 Agregar Nuevo Médico")
                 
-                try:
-                    query = "SELECT id, nombre, matricula FROM medicos ORDER BY nombre ASC"
-                    medicos_df = pd.read_sql(query, engine)
-                    medicos_db = medicos_df.values.tolist()
-                except Exception as e:
-                    medicos_db = []
-                    
-                for i, (m_id, m_nombre, m_matricula) in enumerate(medicos_db):
-                    col_m1, col_m2 = st.columns([8, 2])
-                    with col_m1:
-                        mat_txt = f" (Mat: {m_matricula})" if m_matricula else ""
-                        st.write(f"• **{m_nombre}**{mat_txt}")
-                    with col_m2:
-                        if st.button("🗑️ Eliminar", key=f"btn_del_med_seguro_{m_id}_{i}"):
-                            try:
-                                with engine.begin() as connection:
-                                    connection.execute(text("DELETE FROM medicos WHERE id = :id"), {"id": m_id})
-                                st.success("Médico eliminado.")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error al eliminar: {e}")
+                if btn_crear:
+                    if nuevo_nom:
+                        try:
+                            with engine.begin() as connection:
+                                connection.execute(
+                                    text("INSERT INTO medicos (nombre, matricula) VALUES (:nombre, :matricula)"),
+                                    {"nombre": nuevo_nom.upper(), "matricula": nuevo_mat}
+                                )
+                            st.success("¡Médico agregado con éxito!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al guardar: {e}")
+                    else:
+                        st.warning("⚠️ Debes ingresar el nombre del médico.")
+                
+            st.markdown("---")
+            st.markdown("##### Listado de Médicos Registrados")
+            
+            try:
+                query = "SELECT id, nombre, matricula FROM medicos ORDER BY nombre ASC"
+                medicos_df = pd.read_sql(query, engine)
+                medicos_db = medicos_df.values.tolist()
+            except Exception as e:
+                medicos_db = []
+                
+            for i, (m_id, m_nombre, m_matricula) in enumerate(medicos_db):
+                col_m1, col_m2 = st.columns([8, 2])
+                with col_m1:
+                    mat_txt = f" (Mat: {m_matricula})" if m_matricula else ""
+                    st.write(f"• **{m_nombre}**{mat_txt}")
+                with col_m2:
+                    if st.button("🗑️ Eliminar", key=f"btn_del_med_seguro_{m_id}_{i}"):
+                        try:
+                            with engine.begin() as connection:
+                                connection.execute(text("DELETE FROM medicos WHERE id = :id"), {"id": m_id})
+                            st.success("Médico eliminado.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al eliminar: {e}")
     with t_firmas:
         st.subheader("🖼️ Gestión de Identidad Visual (Logos y Firmas)")
         
