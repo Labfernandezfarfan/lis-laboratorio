@@ -340,14 +340,13 @@ import psycopg2
 
 def conectar_db():
     return psycopg2.connect(
-        host="db.hgukbkxetzxlxossfvif.supabase.co",
+        host="aws-1-us-west-2.pooler.supabase.com",
         port=5432,
-        user="postgres", # Aquí el usuario es SOLO "postgres"
-        password="Laboratorio135Lis", 
+        user="postgres.hgukbkxetzxlxossfvif", # <-- ¡Asegúrate de que tenga zxlx!
+        password="Laboratorio135Lis",
         dbname="postgres",
         sslmode="require"
     )
-
 def crear_tablas():
     conn = conectar_db()
     cursor = conn.cursor()
