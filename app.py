@@ -3538,10 +3538,14 @@ elif menu == "⚙️ Configuración de Análisis":
         bq_firma_sel = st.selectbox("Seleccione el profesional para asignarle/cambiarle la firma digital:", options=dict_bq_f.keys(), format_func=lambda x: dict_bq_f[x])
         
         firma_vista = obtener_firma_base64(bq_firma_sel)
+        # Verificamos que firma_vista tenga contenido válido y no esté vacía o nula
         if firma_vista:
-            st.image(firma_vista, caption=f"Firma actual de: {dict_bq_f[bq_firma_sel]}", width=200)
+            try:
+                st.image(firma_vista, caption=f"Firma actual de: {dict_bq_f.get(bq_firma_sel, '')}", width=200)
+            except Exception:
+                st.info("No se pudo cargar la imagen de la firma o el archivo no existe.")
         else:
-            st.warning("Este profesional todavía no posee una firma digital cargada en la base de datos.")
+            st.info("Este bioquímico aún no tiene una firma registrada.")
             
         uploaded_firma = st.file_uploader(f"Seleccionar imagen de la firma escaneada (Recomendado trazo negro con fondo transparente PNG):", type=["png", "jpg", "jpeg"], key="upload_firma_profesional")
         if uploaded_firma is not None:
