@@ -3171,11 +3171,11 @@ elif menu == "⚙️ Configuración de Análisis":
         st.markdown("#### Lista de Perfiles Base Registrados:")
         perfiles_lista = listar_nomenclador()
         for i, (p_cod, p_nom, _) in enumerate(perfiles_lista):
-                    col_p_info, col_p_ed, col_p_del = st.columns([7, 1, 1])
-                    with col_p_info: st.write(f"• **`{p_cod}`** — {p_nom}")
-                    with col_p_ed:
-                        # Añadimos _{i} al key para garantizar que jamás se repita
-                        if st.button("✏️", key=f"ed_perf_base_{p_cod}_{i}"):
+            col_p_info, col_p_ed, col_p_del = st.columns([7, 1, 1])
+            with col_p_info: st.write(f"• **`{p_cod}`** — {p_nom}")
+            with col_p_ed:
+                # Añadimos _{i} al key para garantizar que jamás se repita
+                if st.button("✏️", key=f"ed_perf_base_{p_cod}_{i}"):
                     try:
                         p_ub = p[2] if len(p) > 2 else 0.0
                     except NameError:
