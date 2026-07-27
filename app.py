@@ -3406,7 +3406,7 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.rerun()
             with t_med:
                 st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
-                with st.form("form_gestion_medicos_registro_unico_V2"):
+                with st.form("form_crear_medicos_registro_unico_V2"):
                     nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
                     nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
                     btn_crear = st.form_submit_button("💾 Agregar Nuevo Médico")
