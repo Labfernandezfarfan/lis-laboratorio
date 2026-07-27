@@ -3072,7 +3072,7 @@ elif menu == "💵 Facturación Particulares":
             """)
 elif menu == "⚙️ Configuración de Análisis":
     st.header("⚙️ Panel de Gestión de Archivos de Configuración")
-    t_det, t_perf, t_os, t_med, t_resp, t_firmas = st.tabs(["🔬 Determinaciones", "🧬 Perfiles (Combos)", "💵 Seguros (UB)", "👨‍⚕️ Médicos", "✍ Respuestas Fijas", "✍️ Logos y Firmas"])
+    t_det, t_perf, t_os, t_med, t_resp, t_firmas = st.tabs(["🔬 Determinaciones", "🧬 Perfiles (Combos)", "💵 Seguros (UB)", "👨‍⚕️ Médicos", "✍ Respuestas Predefinidas", "✍️ Logos y Firmas"])
     
     with t_det:
         st.subheader("Crear / Modificar Renglón de Análisis")
