@@ -3409,11 +3409,11 @@ elif menu == "⚙️ Configuración de Análisis":
                 if "med_state" not in st.session_state:
                     st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
                     
-                # Campos de texto fuera de st.form para evitar cualquier conflicto de duplicados
-                m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"], key="input_nombre_medico")
-                m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"], key="input_matricula_medico")
+                # Claves únicas para evitar duplicados en todo el proyecto
+                m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"], key="input_nombre_medico_2026_unico_xyz")
+                m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"], key="input_matricula_medico_2026_unico_xyz")
                 
-                btn_save_med = st.button("💾 Guardar Médico")
+                btn_save_med = st.button("💾 Guardar Médico", key="btn_save_medico_2026_unico_xyz")
                     
                 if btn_save_med and m_nom:
                     try:
@@ -3452,11 +3452,11 @@ elif menu == "⚙️ Configuración de Análisis":
                         mat_txt = f" (Mat: {m_matricula})" if m_matricula else ""
                         st.write(f"• **{m_nombre}**{mat_txt}")
                     with col_m2:
-                        if st.button("✏️", key=f"ed_med_{m_id}_{i}"):
+                        if st.button("✏️", key=f"ed_med_xyz_{m_id}_{i}"):
                             st.session_state.med_state = {"id": m_id, "nombre": m_nombre, "matricula": m_matricula if m_matricula else ""}
                             st.rerun()
                     with col_m3:
-                        if st.button("🗑️", key=f"del_med_{m_id}_{i}"):
+                        if st.button("🗑️", key=f"del_med_xyz_{m_id}_{i}"):
                             try:
                                 with engine.begin() as connection:
                                     connection.execute(text("DELETE FROM medicos WHERE id = :id"), {"id": m_id})
@@ -3464,7 +3464,6 @@ elif menu == "⚙️ Configuración de Análisis":
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Error al eliminar: {e}")
-
     with t_firmas:
         st.subheader("🖼️ Gestión de Identidad Visual (Logos y Firmas)")
         
