@@ -339,11 +339,14 @@ from supabase import create_client, Client
 import psycopg2
 
 def conectar_db():
-    # Obtiene la cadena de conexión directa desde los secretos de Streamlit
-    database_url = st.secrets["DATABASE_URL"]
-    
-    # Conecta directamente a la base de datos PostgreSQL en la nube
-    return psycopg2.connect(database_url)
+    return psycopg2.connect(
+        host="aws-1-us-west-2.pooler.supabase.com",
+        port=6543,
+        user="postgres.hgukbkxetzlxossfvif",
+        password="Laboratorio135Lis", # Pon tu contraseña real aquí, asegúrate de que no tenga símbolos raros
+        dbname="postgres",
+        sslmode="require"
+    )
 
 def crear_tablas():
     conn = conectar_db()
