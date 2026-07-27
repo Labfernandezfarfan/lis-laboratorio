@@ -3406,40 +3406,30 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.rerun()
             with t_med:
                 st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
-                if "med_state" not in st.session_state:
-                    st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
-                    
-                # Clave dinámica basada en el ID actual para evitar duplicados absolutos
-                current_id_str = str(st.session_state.med_state["id"]) if st.session_state.med_state["id"] is not None else "nuevo"
                 
-                m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"], key=f"input_nombre_medico_{current_id_str}")
-                m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"], key=f"input_matricula_medico_{current_id_str}")
-                
-                btn_save_med = st.button("💾 Guardar Médico", key=f"btn_save_medico_{current_id_str}")
+                # Formulario simple de alta de un nuevo médico
+                with st.form("form_nuevo_medico_unico_2026"):
+                    nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
+                    nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
+                    btn_crear = st.form_submit_button("💾 Agregar Nuevo Médico")
                     
-                if btn_save_med and m_nom:
-                    try:
-                        with engine.begin() as connection:
-                            if st.session_state.med_state["id"]:
-                                connection.execute(
-                                    text("UPDATE medicos SET nombre = :nombre, matricula = :matricula WHERE id = :id"),
-                                    {"nombre": m_nom.upper(), "matricula": m_mat, "id": st.session_state.med_state["id"]}
-                                )
-                            else:
-                                connection.execute(
-                                    text("INSERT INTO medicos (nombre, matricula) VALUES (:nombre, :matricula)"),
-                                    {"nombre": m_nom.upper(), "matricula": m_mat}
-                                )
-                        st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
-                        st.success("Médico guardado correctamente.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al guardar el médico: {e}")
-                elif btn_save_med:
-                    st.warning("⚠️ Debe ingresar al menos el nombre del médico.")
+                    if btn_crear:
+                        if nuevo_nom:
+                            try:
+                                with engine.begin() as connection:
+                                    connection.execute(
+                                        text("INSERT INTO medicos (nombre, matricula) VALUES (:nombre, :matricula)"),
+                                        {"nombre": nuevo_nom.upper(), "matricula": nuevo_mat}
+                                    )
+                                st.success("¡Médico agregado con éxito!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al guardar: {e}")
+                        else:
+                            st.warning("⚠️ Debes ingresar el nombre del médico.")
                     
                 st.markdown("---")
-                st.markdown("##### Médicos Registrados")
+                st.markdown("##### Listado de Médicos Registrados")
                 
                 try:
                     query = "SELECT id, nombre, matricula FROM medicos ORDER BY nombre ASC"
@@ -3449,16 +3439,12 @@ elif menu == "⚙️ Configuración de Análisis":
                     medicos_db = []
                     
                 for i, (m_id, m_nombre, m_matricula) in enumerate(medicos_db):
-                    col_m1, col_m2, col_m3 = st.columns([6, 1, 1])
+                    col_m1, col_m2 = st.columns([8, 2])
                     with col_m1:
                         mat_txt = f" (Mat: {m_matricula})" if m_matricula else ""
                         st.write(f"• **{m_nombre}**{mat_txt}")
                     with col_m2:
-                        if st.button("✏️", key=f"ed_med_dinamico_{m_id}_{i}"):
-                            st.session_state.med_state = {"id": m_id, "nombre": m_nombre, "matricula": m_matricula if m_matricula else ""}
-                            st.rerun()
-                    with col_m3:
-                        if st.button("🗑️", key=f"del_med_dinamico_{m_id}_{i}"):
+                        if st.button("🗑️ Eliminar", key=f"btn_del_med_seguro_{m_id}_{i}"):
                             try:
                                 with engine.begin() as connection:
                                     connection.execute(text("DELETE FROM medicos WHERE id = :id"), {"id": m_id})
