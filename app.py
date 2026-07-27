@@ -3408,10 +3408,10 @@ elif menu == "⚙️ Configuración de Análisis":
                 st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
                 
                 # Formulario simple de alta de un nuevo médico
-                with st.form("form_gestion_medicos_registro_unico"):
-                    nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
-                    nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
-                    btn_crear = st.form_submit_button("💾 Agregar Nuevo Médico")
+            with st.form("form_gestion_medicos_registro_unico"):
+                nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
+                nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
+                btn_crear = st.form_submit_button("💾 Agregar Nuevo Médico")
                     
                     if btn_crear:
                         if nuevo_nom:
