@@ -3409,11 +3409,13 @@ elif menu == "⚙️ Configuración de Análisis":
                 if "med_state" not in st.session_state:
                     st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
                     
-                # Claves únicas para evitar duplicados en todo el proyecto
-                m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"], key="input_nombre_medico_9999_unico_xyz")
-                m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"], key="input_matricula_medico_2026_unico_xyz")
+                # Clave dinámica basada en el ID actual para evitar duplicados absolutos
+                current_id_str = str(st.session_state.med_state["id"]) if st.session_state.med_state["id"] is not None else "nuevo"
                 
-                btn_save_med = st.button("💾 Guardar Médico", key="btn_save_medico_2026_unico_xyz")
+                m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"], key=f"input_nombre_medico_{current_id_str}")
+                m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"], key=f"input_matricula_medico_{current_id_str}")
+                
+                btn_save_med = st.button("💾 Guardar Médico", key=f"btn_save_medico_{current_id_str}")
                     
                 if btn_save_med and m_nom:
                     try:
@@ -3452,11 +3454,11 @@ elif menu == "⚙️ Configuración de Análisis":
                         mat_txt = f" (Mat: {m_matricula})" if m_matricula else ""
                         st.write(f"• **{m_nombre}**{mat_txt}")
                     with col_m2:
-                        if st.button("✏️", key=f"ed_med_xyz_{m_id}_{i}"):
+                        if st.button("✏️", key=f"ed_med_dinamico_{m_id}_{i}"):
                             st.session_state.med_state = {"id": m_id, "nombre": m_nombre, "matricula": m_matricula if m_matricula else ""}
                             st.rerun()
                     with col_m3:
-                        if st.button("🗑️", key=f"del_med_xyz_{m_id}_{i}"):
+                        if st.button("🗑️", key=f"del_med_dinamico_{m_id}_{i}"):
                             try:
                                 with engine.begin() as connection:
                                     connection.execute(text("DELETE FROM medicos WHERE id = :id"), {"id": m_id})
