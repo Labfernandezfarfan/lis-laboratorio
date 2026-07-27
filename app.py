@@ -1,6 +1,3 @@
-
-
-
 import streamlit as st
 import sqlite3
 import re
@@ -8,6 +5,12 @@ import pandas as pd
 import urllib.parse
 import base64
 from datetime import datetime, date
+from sqlalchemy import create_engine, text
+
+# Conexión centralizada a Supabase
+DATABASE_URL = "postgresql://postgres.hgukbkxetzlxossfvif:0807Vicente2026@aws-1-us-west-2.pooler.supabase.com:6543/postgres?sslmode=require"
+engine = create_engine(DATABASE_URL)
+
 @st.dialog("🖨️ Preparando Impresión")
 
 # ==========================================
