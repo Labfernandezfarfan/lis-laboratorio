@@ -3401,70 +3401,66 @@ elif menu == "⚙️ Configuración de Análisis":
                     cur.execute("DELETE FROM obras_sociales WHERE id = ?", (os_id,))
                     conn.commit(); conn.close()
                     st.rerun()
-
-        st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
-        if "med_state" not in st.session_state:
-            st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
-            
-        with st.form("form_medicos", clear_on_submit=True):
-            m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"])
-            m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"])
-            
-            btn_save_med = st.form_submit_button("💾 Guardar Médico")
-            
-        if btn_save_med and m_nom:
-            try:
-                # Usamos tu motor de conexión a Supabase (engine)
-                with engine.begin() as connection:
-                    if st.session_state.med_state["id"]:
-                        connection.execute(
-                            text("UPDATE medicos SET nombre = :nombre, matricula = :matricula WHERE id = :id"),
-                            {"nombre": m_nom.upper(), "matricula": m_mat, "id": st.session_state.med_state["id"]}
-                        )
-                    else:
-                        connection.execute(
-                            text("INSERT INTO medicos (nombre, matricula) VALUES (:nombre, :matricula)"),
-                            {"nombre": m_nom.upper(), "matricula": m_mat}
-                        )
-                st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
-                st.success("Médico guardado correctamente en Supabase.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error al guardar el médico: {e}")
-        elif btn_save_med:
-            st.warning("⚠️ Debe ingresar al menos el nombre del médico.")
-            
-        st.markdown("---")
-        st.markdown("##### Médicos Registrados")
-        
-        try:
-            # Consultamos directamente la tabla 'medicos' en Supabase usando pandas o el engine
-            query = "SELECT id, nombre, matricula FROM medicos ORDER BY nombre ASC"
-            medicos_df = pd.read_sql(query, engine)
-            medicos_db = medicos_df.values.tolist()
-        except Exception as e:
-            medicos_db = []
-            
-        for i, (m_id, m_nombre, m_matricula) in enumerate(medicos_db):
-            col_m1, col_m2, col_m3 = st.columns([6, 1, 1])
-            with col_m1:
-                mat_txt = f" (Mat: {m_matricula})" if m_matricula else ""
-                st.write(f"• **{m_nombre}**{mat_txt}")
-            with col_m2:
-                # Añadimos el índice i para evitar duplicidad de keys
-                if st.button("✏️", key=f"ed_med_{m_id}_{i}"):
-                    st.session_state.med_state = {"id": m_id, "nombre": m_nombre, "matricula": m_matricula if m_matricula else ""}
-                    st.rerun()
-            with col_m3:
-                # Añadimos el índice i para evitar duplicidad de keys
-                if st.button("🗑️", key=f"del_med_{m_id}_{i}"):
+            with t_med:
+                    st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
+                    if "med_state" not in st.session_state:
+                        st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
+                        
+                    with st.form("form_medicos", clear_on_submit=True):
+                        m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"])
+                        m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"])
+                        
+                        btn_save_med = st.form_submit_button("💾 Guardar Médico")
+                        
+                    if btn_save_med and m_nom:
+                        try:
+                            with engine.begin() as connection:
+                                if st.session_state.med_state["id"]:
+                                    connection.execute(
+                                        text("UPDATE medicos SET nombre = :nombre, matricula = :matricula WHERE id = :id"),
+                                        {"nombre": m_nom.upper(), "matricula": m_mat, "id": st.session_state.med_state["id"]}
+                                    )
+                                else:
+                                    connection.execute(
+                                        text("INSERT INTO medicos (nombre, matricula) VALUES (:nombre, :matricula)"),
+                                        {"nombre": m_nom.upper(), "matricula": m_mat}
+                                    )
+                            st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
+                            st.success("Médico guardado correctamente.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al guardar el médico: {e}")
+                    elif btn_save_med:
+                        st.warning("⚠️ Debe ingresar al menos el nombre del médico.")
+                        
+                    st.markdown("---")
+                    st.markdown("##### Médicos Registrados")
+                    
                     try:
-                        with engine.begin() as connection:
-                            connection.execute(text("DELETE FROM medicos WHERE id = :id"), {"id": m_id})
-                        st.success("Médico eliminado.")
-                        st.rerun()
+                        query = "SELECT id, nombre, matricula FROM medicos ORDER BY nombre ASC"
+                        medicos_df = pd.read_sql(query, engine)
+                        medicos_db = medicos_df.values.tolist()
                     except Exception as e:
-                        st.error(f"Error al eliminar: {e}")
+                        medicos_db = []
+                        
+                    for i, (m_id, m_nombre, m_matricula) in enumerate(medicos_db):
+                        col_m1, col_m2, col_m3 = st.columns([6, 1, 1])
+                        with col_m1:
+                            mat_txt = f" (Mat: {m_matricula})" if m_matricula else ""
+                            st.write(f"• **{m_nombre}**{mat_txt}")
+                        with col_m2:
+                            if st.button("✏️", key=f"ed_med_{m_id}_{i}"):
+                                st.session_state.med_state = {"id": m_id, "nombre": m_nombre, "matricula": m_matricula if m_matricula else ""}
+                                st.rerun()
+                        with col_m3:
+                            if st.button("🗑️", key=f"del_med_{m_id}_{i}"):
+                                try:
+                                    with engine.begin() as connection:
+                                        connection.execute(text("DELETE FROM medicos WHERE id = :id"), {"id": m_id})
+                                    st.success("Médico eliminado.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error al eliminar: {e}")
         
     with t_resp:
         st.subheader("✍️ Respuestas / Comentarios Fijos para Informes")
