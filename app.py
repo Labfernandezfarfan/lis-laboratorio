@@ -3410,7 +3410,7 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
                     
                 # Claves únicas para evitar duplicados en todo el proyecto
-                m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"], key="input_nombre_medico_2026_unico_xyz")
+                m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"], key="input_nombre_medico_9999_unico_xyz")
                 m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"], key="input_matricula_medico_2026_unico_xyz")
                 
                 btn_save_med = st.button("💾 Guardar Médico", key="btn_save_medico_2026_unico_xyz")
