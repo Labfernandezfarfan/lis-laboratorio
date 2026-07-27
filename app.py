@@ -3406,12 +3406,7 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.rerun()
             with t_med:
                 st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
-                import uuid
-
-                form_key = f"form_crear_medico_registro_unico_V2_{uuid.uuid4()}"
-                
-                with st.form(form_key):
-                    # contenido del formulario
+                with st.form("form_gestion_medicos_registro_unico_v2"):
 
                     nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
                     nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
