@@ -3190,7 +3190,8 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.rerun()
                     
             with col_p_del:
-                if st.button("🗑️", key=f"del_perf_base_{p_cod}"):
+                # Aquí faltaba agregar el _{i} en la clave
+                if st.button("🗑️", key=f"del_perf_base_{p_cod}_{i}"):
                     conn = conectar_db(); cur = conn.cursor()
                     cur.execute("DELETE FROM nomenclador WHERE codigo = ?", (p_cod,))
                     cur.execute("DELETE FROM perfil_detalles WHERE codigo_perfil = ?", (p_cod,))
