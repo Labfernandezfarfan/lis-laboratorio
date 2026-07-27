@@ -340,10 +340,10 @@ import psycopg2
 
 def conectar_db():
     return psycopg2.connect(
-        host="aws-1-us-west-2.pooler.supabase.com",
+        host="db.hgukbkxetzxlxossfvif.supabase.co",
         port=5432,
-        user="postgres.hgukbkxetzxlxossfvif",
-        password="Laboratorio135Lis", # Pon tu contraseña real aquí, asegúrate de que no tenga símbolos raros
+        user="postgres", # Aquí el usuario es SOLO "postgres"
+        password="Laboratorio135Lis", 
         dbname="postgres",
         sslmode="require"
     )
