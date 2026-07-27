@@ -3406,7 +3406,10 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.rerun()
             with t_med:
                 st.subheader("👨‍⚕️ Gestión de Médicos Solicitantes")
-                with st.form("form_gestion_medicos_registro_unico_v2"):
+                import time
+
+                # Esto genera una clave con los milisegundos actuales, haciéndola 100% única siempre
+                with st.form(f"form_gestion_medicos_registro_unico_{time.time()}"):
 
                     nuevo_nom = st.text_input("Nombre y Apellido del Dr./a:")
                     nuevo_mat = st.text_input("Matrícula Profesional (Opcional):")
