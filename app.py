@@ -3409,7 +3409,7 @@ elif menu == "⚙️ Configuración de Análisis":
                     if "med_state" not in st.session_state:
                         st.session_state.med_state = {"id": None, "nombre": "", "matricula": ""}
                         
-                   with st.form("form_medicos_gestion", clear_on_submit=True):
+                    with st.form("form_medicos_gestion", clear_on_submit=True):
                         m_nom = st.text_input("Nombre y Apellido del Dr./a:", value=st.session_state.med_state["nombre"])
                         m_mat = st.text_input("Matrícula Profesional (Opcional):", value=st.session_state.med_state["matricula"])
                         
