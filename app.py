@@ -3389,20 +3389,20 @@ elif menu == "⚙️ Configuración de Análisis":
                     SET nombre = ?, valor_ub = ?, incluye_acto = ?, valor_acto = ?, incluye_gbi = ?, valor_gbi = ? 
                     WHERE id = ?
                 """, (name_os.upper(), val_ub, val_inc_acto, val_acto, val_inc_gbi, val_gbi, st.session_state.os_state["id"]))
-           else:
-                try:
-                    cur.execute("""
-                        INSERT INTO obras_sociales 
-                        (nombre, valor_ub, incluye_acto, valor_acto, incluye_gbi, valor_gbi) 
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (name_os.upper(), val_ub, val_inc_acto, val_acto, val_inc_gbi, val_gbi))
-                    conn.commit()
-                    conn.close()
-                except Exception as e:
-                    if 'conn' in locals() and conn:
-                        conn.rollback()
-                        conn.close()
-                    st.error(f"Error al guardar la obra social: {e}")
+            else:
+                 try:
+                     cur.execute("""
+                         INSERT INTO obras_sociales 
+                         (nombre, valor_ub, incluye_acto, valor_acto, incluye_gbi, valor_gbi) 
+                         VALUES (%s, %s, %s, %s, %s, %s)
+                     """, (name_os.upper(), val_ub, val_inc_acto, val_acto, val_inc_gbi, val_gbi))
+                     conn.commit()
+                     conn.close()
+                 except Exception as e:
+                     if 'conn' in locals() and conn:
+                         conn.rollback()
+                         conn.close()
+                     st.error(f"Error al guardar la obra social: {e}")
             
             st.session_state.os_state = {
                 "id": None, "nom": "", "val": 1260.0,
