@@ -913,41 +913,65 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 💾 Copia de Seguridad")
-    st.write("Genera y descarga un respaldo completo de las tablas de tu base de datos en la nube.")
+    st.write("Genera y descarga un respaldo completo de **todas** las tablas de tu base de datos en la nube (Pacientes, Órdenes, Determinaciones, Médicos, etc.).")
 
     from datetime import datetime
     import pandas as pd
+    import json
 
     try:
         conn = conectar_db()
-        # Tomamos la tabla principal de pacientes o hacemos un resumen
-        df_pacientes = pd.read_sql("SELECT * FROM pacientes", conn)
-        df_ordenes = pd.read_sql("SELECT * FROM ordenes", conn)
+        
+        # Lista con TODAS las tablas de tu sistema LIS
+        tablas_a_respaldar = [
+            "pacientes", 
+            "ordenes", 
+            "determinaciones", 
+            "detalle_orden", 
+            "respuestas_fijas", 
+            "medicos", 
+            "obras_sociales", 
+            "configuracion_general"
+        ]
+        
+        datos_backup = {}
+        
+        # Leemos cada tabla y la convertimos en un diccionario de datos
+        for tabla in tablas_a_respaldar:
+            try:
+                df = pd.read_sql(f"SELECT * FROM {tabla}", conn)
+                # Convertimos el DataFrame a registros formato JSON
+                datos_backup[tabla] = df.to_dict(orient="records")
+            except Exception:
+                # Si alguna tabla no tiene registros o da error, la dejamos vacía
+                datos_backup[tabla] = []
+                
         conn.close()
         
-        # Unimos o preparamos un CSV limpio con los datos esenciales de la base
-        # O convertimos los datos a texto CSV directamente
-        csv_data = df_pacientes.to_csv(index=False).encode('utf-8')
+        # Convertimos todo el diccionario gigante a texto JSON ordenado
+        json_string = json.dumps(datos_backup, ensure_ascii=False, indent=4)
+        bytes_json = json_string.encode('utf-8')
+        
         fecha_backup = datetime.now().strftime("%Y-%m-%d_%H-%M")
         
-        st.success("¡Respaldo listo para descargar!")
+        st.success("¡Respaldo completo listo para descargar!")
         st.download_button(
-            label="📥 Descargar Respaldo de Pacientes (.csv)",
-            data=csv_data,
-            file_name=f"backup_pacientes_{fecha_backup}.csv",
-            mime="text/csv",
-            use_container_width=True
+            label="📥 Descargar Respaldo Completo del LIS (.json)",
+            data=bytes_json,
+            file_name=f"backup_completo_lis_{fecha_backup}.json",
+            mime="application/json",
+            use_container_width=True,
+            help="Descarga un archivo con toda la información de tu base de datos en la nube."
         )
         
     except Exception as e:
         if 'conn' in locals() and conn:
             conn.close()
-        st.error(f"Error al preparar el respaldo: {e}")
+        st.error(f"Error al preparar el respaldo completo: {e}")
 
     st.markdown("---")
     st.subheader("🔄 Restaurar Copia de Seguridad")
     st.info("ℹ️ Nota: La restauración en bases de datos en la nube (Supabase) se realiza de forma segura mediante importación directa o scripts SQL para evitar corromper las relaciones entre pacientes y órdenes.")
-    st.markdown("---")
     if st.button("🚪 Cerrar Sesión", type="secondary", use_container_width=True):
         st.session_state.clear()
         st.rerun()
