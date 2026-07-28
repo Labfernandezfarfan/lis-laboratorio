@@ -3574,9 +3574,13 @@ elif menu == "⚙️ Configuración de Análisis":
             with col_r3:
                 if st.button("🗑️", key=f"del_resp_{r_id}_{idx}"):
                     try:
-                        conn = conectar_db(); cur = conn.cursor()
+                        conn = conectar_db()
+                        cur = conn.cursor()
+                        # Verificamos si realmente entra aquí ejecutando el borrado
                         cur.execute("DELETE FROM respuestas_fijas WHERE id = %s", (r_id,))
-                        conn.commit(); conn.close()
+                        conn.commit()
+                        conn.close()
+                        st.success(f"¡Eliminado ID {r_id}!")
                         st.rerun()
                     except Exception as e:
                         if 'conn' in locals() and conn:
