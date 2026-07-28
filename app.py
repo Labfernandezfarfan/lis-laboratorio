@@ -3301,7 +3301,17 @@ elif menu == "⚙️ Configuración de Análisis":
                     else:
                         if st.button("💾 Enlazar Práctica", type="primary", use_container_width=True):
                             conn = conectar_db(); cursor = conn.cursor()
-                            cursor.execute("INSERT OR REPLACE INTO perfil_detalles (codigo_perfil, codigo_item, formula, orden_visual, metodo, en_negrita) VALUES (?, ?, '', ?, ?, ?)", (p_sel, det_sel, ord_v, m_text, neg_sel))
+                            try:
+                                cursor.execute("""
+                                    INSERT INTO perfil_detalles 
+                                    (codigo_perfil, codigo_item, formula, orden_visual, metodo, en_negrita) 
+                                    VALUES (%s, %s, '', %s, %s, %s)
+                                """, (p_sel, det_sel, ord_v, m_text, neg_sel))
+                                conn.commit()
+                            except Exception as e:
+                                if 'conn' in locals() and conn:
+                                    conn.rollback()
+                                st.error(f"Error al guardar el detalle del perfil: {e}")
                             conn.commit(); conn.close()
                             st.rerun()
 
