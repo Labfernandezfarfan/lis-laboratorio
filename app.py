@@ -3109,9 +3109,17 @@ elif menu == "⚙️ Configuración de Análisis":
                     except: pass 
 
                     cur.execute("""
-                        INSERT OR REPLACE INTO determinaciones 
-                        (codigo_item, sub_item, text_unidad, valores_referencia, es_titulo, ub_facturacion, formula_calculo) 
+                        INSERT INTO determinaciones
+                        (codigo_item, sub_item, text_unidad, valores_referencia, es_titulo, ub_facturacion, formula_calculo)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (codigo_item) 
+                        DO UPDATE SET 
+                            sub_item = EXCLUDED.sub_item,
+                            text_unidad = EXCLUDED.text_unidad,
+                            valores_referencia = EXCLUDED.valores_referencia,
+                            es_titulo = EXCLUDED.es_titulo,
+                            ub_facturacion = EXCLUDED.ub_facturacion,
+                            formula_calculo = EXCLUDED.formula_calculo
                     """, (c_i, s_n, u_m, r_f, es_t, ub_fac_input, f_m))
                     
                     conn.commit(); conn.close()
