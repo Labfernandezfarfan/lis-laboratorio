@@ -3166,7 +3166,7 @@ elif menu == "⚙️ Configuración de Análisis":
                 with c_btn_p2:
                     cancelar_p = st.form_submit_button("Cancelar")
                     
-               if submit_p and cod_p_input and nom_p_input:
+                if submit_p and cod_p_input and nom_p_input:
                     try:
                         conn = conectar_db(); cur = conn.cursor()
                         cur.execute("""
