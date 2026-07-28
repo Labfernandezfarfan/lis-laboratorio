@@ -3389,14 +3389,20 @@ elif menu == "⚙️ Configuración de Análisis":
                     SET nombre = ?, valor_ub = ?, incluye_acto = ?, valor_acto = ?, incluye_gbi = ?, valor_gbi = ? 
                     WHERE id = ?
                 """, (name_os.upper(), val_ub, val_inc_acto, val_acto, val_inc_gbi, val_gbi, st.session_state.os_state["id"]))
-            else: 
-                cur.execute("""
-                    INSERT OR REPLACE INTO obras_sociales 
-                    (nombre, valor_ub, incluye_acto, valor_acto, incluye_gbi, valor_gbi) 
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (name_os.upper(), val_ub, val_inc_acto, val_acto, val_inc_gbi, val_gbi))
-            
-            conn.commit(); conn.close()
+           else:
+                try:
+                    cur.execute("""
+                        INSERT INTO obras_sociales 
+                        (nombre, valor_ub, incluye_acto, valor_acto, incluye_gbi, valor_gbi) 
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (name_os.upper(), val_ub, val_inc_acto, val_acto, val_inc_gbi, val_gbi))
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    if 'conn' in locals() and conn:
+                        conn.rollback()
+                        conn.close()
+                    st.error(f"Error al guardar la obra social: {e}")
             
             st.session_state.os_state = {
                 "id": None, "nom": "", "val": 1260.0,
@@ -3435,7 +3441,7 @@ elif menu == "⚙️ Configuración de Análisis":
             with col_ba:
                 if st.button("🗑️", key=f"del_os_{os_id}"): 
                     conn = conectar_db(); cur = conn.cursor()
-                    cur.execute("DELETE FROM obras_sociales WHERE id = ?", (os_id,))
+                    cur.execute("DELETE FROM obras_sociales WHERE id = %S", (os_id,))
                     conn.commit(); conn.close()
                     st.rerun()
         with t_med:
