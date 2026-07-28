@@ -919,55 +919,54 @@ with st.sidebar:
     import pandas as pd
     import json
 
-    try:
-        conn = conectar_db()
-        
-        # Lista con TODAS las tablas de tu sistema LIS
-        tablas_a_respaldar = [
-            "pacientes", 
-            "ordenes", 
-            "determinaciones", 
-            "detalle_orden", 
-            "respuestas_fijas", 
-            "medicos", 
-            "obras_sociales", 
-            "configuracion_general"
-        ]
-        
-        datos_backup = {}
-        
-        # Leemos cada tabla y la convertimos en un diccionario de datos
-        for tabla in tablas_a_respaldar:
+    # 1. Creamos un botón limpio que espera tu orden
+    if st.button("🚀 Generar Respaldo Ahora", use_container_width=True):
+        with st.spinner("Consultando la base de datos en la nube..."):
             try:
-                df = pd.read_sql(f"SELECT * FROM {tabla}", conn)
-                # Convertimos el DataFrame a registros formato JSON
-                datos_backup[tabla] = df.to_dict(orient="records")
-            except Exception:
-                # Si alguna tabla no tiene registros o da error, la dejamos vacía
-                datos_backup[tabla] = []
+                conn = conectar_db()
                 
-        conn.close()
-        
-        # Convertimos todo el diccionario gigante a texto JSON ordenado
-        json_string = json.dumps(datos_backup, ensure_ascii=False, indent=4)
-        bytes_json = json_string.encode('utf-8')
-        
-        fecha_backup = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        
-        st.success("¡Respaldo completo listo para descargar!")
-        st.download_button(
-            label="📥 Descargar Respaldo Completo del LIS (.json)",
-            data=bytes_json,
-            file_name=f"backup_completo_lis_{fecha_backup}.json",
-            mime="application/json",
-            use_container_width=True,
-            help="Descarga un archivo con toda la información de tu base de datos en la nube."
-        )
-        
-    except Exception as e:
-        if 'conn' in locals() and conn:
-            conn.close()
-        st.error(f"Error al preparar el respaldo completo: {e}")
+                tablas_a_respaldar = [
+                    "pacientes", 
+                    "ordenes", 
+                    "determinaciones", 
+                    "detalle_orden", 
+                    "respuestas_fijas", 
+                    "medicos", 
+                    "obras_sociales", 
+                    "configuracion_general"
+                ]
+                
+                datos_backup = {}
+                
+                for tabla in tablas_a_respaldar:
+                    try:
+                        df = pd.read_sql(f"SELECT * FROM {tabla}", conn)
+                        datos_backup[tabla] = df.to_dict(orient="records")
+                    except Exception:
+                        datos_backup[tabla] = []
+                        
+                conn.close()
+                
+                json_string = json.dumps(datos_backup, ensure_ascii=False, indent=4)
+                bytes_json = json_string.encode('utf-8')
+                
+                fecha_backup = datetime.now().strftime("%Y-%m-%d_%H-%M")
+                
+                st.success("¡Respaldo generado con éxito!")
+                
+                # 2. El botón de descarga aparece solo después de que tú diste la orden de generar
+                st.download_button(
+                    label="📥 Descargar Archivo JSON de Respaldo",
+                    data=bytes_json,
+                    file_name=f"backup_completo_lis_{fecha_backup}.json",
+                    mime="application/json",
+                    use_container_width=True
+                )
+                
+            except Exception as e:
+                if 'conn' in locals() and conn:
+                    conn.close()
+                st.error(f"Error al preparar el respaldo completo: {e}")
 
     st.markdown("---")
     st.subheader("🔄 Restaurar Copia de Seguridad")
