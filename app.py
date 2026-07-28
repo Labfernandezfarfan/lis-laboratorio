@@ -3491,6 +3491,57 @@ elif menu == "⚙️ Configuración de Análisis":
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
+    with t_resp:
+        st.subheader("✍️ Respuestas / Comentarios Fijos para Informes")
+        if "resp_state" not in st.session_state:
+            st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
+            
+        with st.form("form_respuestas", clear_on_submit=True):
+            r_titulo = st.text_input("Título Corto de la Respuesta Fija:", value=st.session_state.resp_state["titulo"])
+            r_texto = st.text_area("Contenido / Texto Fijo:", value=st.session_state.resp_state["texto"])
+            
+            btn_save_resp = st.form_submit_button("💾 Guardar Respuesta Fija")
+            
+        if btn_save_resp and r_titulo and r_texto:
+            conn = conectar_db(); cur = conn.cursor()
+            cur.execute("""CREATE TABLE IF NOT EXISTS respuestas_fijas (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, texto TEXT)""")
+            
+            if st.session_state.resp_state["id"]:
+                cur.execute("UPDATE respuestas_fijas SET titulo = ?, texto = ? WHERE id = ?", (r_titulo.upper(), r_texto, st.session_state.resp_state["id"]))
+            else:
+                cur.execute("INSERT INTO respuestas_fijas (titulo, texto) VALUES (?, ?)", (r_titulo.upper(), r_texto))
+            conn.commit(); conn.close()
+            st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
+            st.success("Respuesta fija guardada con éxito.")
+            st.rerun()
+        elif btn_save_resp:
+            st.warning("⚠️ Debe completar tanto el título corto como el contenido de la respuesta.")
+            
+        st.markdown("---")
+        st.markdown("##### Respuestas Fijas Registradas")
+        try:
+            conn = conectar_db(); cur = conn.cursor()
+            cur.execute("CREATE TABLE IF NOT EXISTS respuestas_fijas (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, texto TEXT)")
+            cur.execute("SELECT id, titulo, texto FROM respuestas_fijas ORDER BY titulo ASC")
+            resp_db = cur.fetchall()
+            conn.close()
+        except:
+            resp_db = []
+            
+        for r_id, r_tit, r_txt in resp_db:
+            col_r1, col_r2, col_r3 = st.columns([6, 1, 1])
+            with col_r1:
+                st.write(f"• **{r_tit}**: _{r_txt[:60]}..._")
+            with col_r2:
+                if st.button("✏️", key=f"ed_resp_{r_id}"):
+                    st.session_state.resp_state = {"id": r_id, "titulo": r_tit, "texto": r_txt}
+                    st.rerun()
+            with col_r3:
+                if st.button("🗑️", key=f"del_resp_{r_id}"):
+                    conn = conectar_db(); cur = conn.cursor()
+                    cur.execute("DELETE FROM respuestas_fijas WHERE id = ?", (r_id,))
+                    conn.commit(); conn.close()
+                    st.rerun()                        
     with t_firmas:
         st.subheader("🖼️ Gestión de Identidad Visual (Logos y Firmas)")
         
