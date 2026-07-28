@@ -3105,8 +3105,7 @@ elif menu == "⚙️ Configuración de Análisis":
                             conn.close()
                             st.stop()
 
-                    try: cur.execute("ALTER TABLE determinaciones ADD COLUMN formula_calculo TEXT")
-                    except: pass 
+                    
 
                     try:
                         cur.execute("""
