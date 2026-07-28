@@ -3140,9 +3140,17 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.rerun()
             with col_d:
                 if st.button("🗑️", key=f"del_det_{cod}"): 
-                    conn = conectar_db(); cur = conn.cursor()
-                    cur.execute("DELETE FROM determinaciones WHERE codigo_item = ?", (cod,))
-                    conn.commit(); conn.close(); st.rerun() 
+                    try:
+                        conn = conectar_db(); cur = conn.cursor()
+                        # AQUÍ ESTABA EL ERROR: Cambiamos '?' por '%s'
+                        cur.execute("DELETE FROM determinaciones WHERE codigo_item = %s", (cod,))
+                        conn.commit(); conn.close()
+                        st.rerun()
+                    except Exception as e:
+                        if 'conn' in locals() and conn:
+                            conn.rollback()
+                            conn.close()
+                        st.error(f"Error al eliminar: {e}") 
          
     with t_perf:
         st.subheader("🧬 Gestión de Combos / Perfiles de Análisis")
