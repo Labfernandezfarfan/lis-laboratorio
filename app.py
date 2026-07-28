@@ -3514,8 +3514,18 @@ elif menu == "⚙️ Configuración de Análisis":
             if st.session_state.resp_state["id"]:
                 cur.execute("UPDATE respuestas_fijas SET titulo = ?, texto = ? WHERE id = ?", (r_titulo.upper(), r_texto, st.session_state.resp_state["id"]))
             else:
-                cur.execute("INSERT INTO respuestas_fijas (titulo, texto) VALUES (?, ?)", (r_titulo.upper(), r_texto))
-            conn.commit(); conn.close()
+                try:
+                    cur.execute("""
+                        INSERT INTO respuestas_fijas (titulo, texto) 
+                        VALUES (%s, %s)
+                    """, (r_titulo.upper(), r_texto))
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    if 'conn' in locals() and conn:
+                        conn.rollback()
+                        conn.close()
+                    st.error(f"Error al guardar la respuesta fija: {e}")
             st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
             st.success("Respuesta fija guardada con éxito.")
             st.rerun()
