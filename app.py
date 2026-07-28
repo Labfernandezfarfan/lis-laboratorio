@@ -1943,7 +1943,7 @@ elif menu == "🧪 Área Analítica (Carga)":
         except Exception:
             items = sorted(items, key=lambda x: (x[1], x[0]))
 
-        resp_list = [r[1] for r in listar_respuestas()]
+        resp_list = [r[1] for r in listar_respuestas_fijas()]
         
         st.markdown("---")
         
