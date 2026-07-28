@@ -3568,9 +3568,12 @@ elif menu == "⚙️ Configuración de Análisis":
         st.markdown("---")
         st.markdown("##### Respuestas Fijas Registradas")
         
+        st.markdown("---")
+        st.markdown("##### Respuestas Fijas Registradas")
+        
         try:
             conn = conectar_db(); cur = conn.cursor()
-            cur.execute("SELECT id, titulo, texto FROM respuestas_fijas ORDER BY titulo ASC")
+            cur.execute("SELECT id, titulo, texto FROM respuestas_fijas WHERE id IS NOT NULL ORDER BY titulo ASC")
             resp_db = cur.fetchall()
             conn.close()
         except Exception as e:
@@ -3578,6 +3581,9 @@ elif menu == "⚙️ Configuración de Análisis":
             st.error(f"Error al cargar las respuestas: {e}")
             
         for idx, (r_id, r_tit, r_txt) in enumerate(resp_db):
+            if r_id is None:
+                continue # Evita mostrar filas sin ID válido
+                
             col_r1, col_r2, col_r3 = st.columns([6, 1, 1])
             with col_r1:
                 st.write(f"• **{r_tit}**: _{r_txt[:60]}..._")
