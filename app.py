@@ -3563,19 +3563,18 @@ elif menu == "⚙️ Configuración de Análisis":
             resp_db = []
             st.error(f"Error al cargar las respuestas: {e}")
             
-        for r_id, r_tit, r_txt in resp_db:
+        for idx, (r_id, r_tit, r_txt) in enumerate(resp_db):
             col_r1, col_r2, col_r3 = st.columns([6, 1, 1])
             with col_r1:
                 st.write(f"• **{r_tit}**: _{r_txt[:60]}..._")
             with col_r2:
-                if st.button("✏️", key=f"ed_resp_{r_id}"):
+                if st.button("✏️", key=f"ed_resp_{r_id}_{idx}"):
                     st.session_state.resp_state = {"id": r_id, "titulo": r_tit, "texto": r_txt}
                     st.rerun()
             with col_r3:
-                if st.button("🗑️", key=f"del_resp_{r_id}"):
+                if st.button("🗑️", key=f"del_resp_{r_id}_{idx}"):
                     try:
                         conn = conectar_db(); cur = conn.cursor()
-                        # Borrado con %s
                         cur.execute("DELETE FROM respuestas_fijas WHERE id = %s", (r_id,))
                         conn.commit(); conn.close()
                         st.rerun()
