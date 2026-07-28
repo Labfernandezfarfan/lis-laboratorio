@@ -3504,52 +3504,66 @@ elif menu == "⚙️ Configuración de Análisis":
         if "resp_state" not in st.session_state:
             st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
             
+        # Si estamos editando, mostramos un aviso visual opcional
+        if st.session_state.resp_state["id"]:
+            st.info(f"✏️ Editando respuesta fija ID: {st.session_state.resp_state['id']}")
+            if st.button("❌ Cancelar Edición"):
+                st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
+                st.rerun()
+
         with st.form("form_respuestas", clear_on_submit=True):
             r_titulo = st.text_input("Título Corto de la Respuesta Fija:", value=st.session_state.resp_state["titulo"])
             r_texto = st.text_area("Contenido / Texto Fijo:", value=st.session_state.resp_state["texto"])
             
             btn_save_resp = st.form_submit_button("💾 Guardar Respuesta Fija")
             
-        if btn_save_resp and r_titulo and r_texto:
-            try:
-                conn = conectar_db(); cur = conn.cursor()
-                
-                # Asegurar tabla en Postgres
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS respuestas_fijas (
-                        id SERIAL PRIMARY KEY, 
-                        titulo TEXT, 
-                        texto TEXT
-                    )
-                """)
-                
-                if st.session_state.resp_state["id"]:
-                    # Actualización con %s
-                    cur.execute("""
-                        UPDATE respuestas_fijas 
-                        SET titulo = %s, texto = %s 
-                        WHERE id = %s
-                    """, (r_titulo.upper(), r_texto, st.session_state.resp_state["id"]))
-                else:
-                    # Inserción con %s
-                    cur.execute("""
-                        INSERT INTO respuestas_fijas (titulo, texto) 
-                        VALUES (%s, %s)
-                    """, (r_titulo.upper(), r_texto))
+        if btn_save_resp:
+            if r_titulo and r_texto:
+                try:
+                    conn = conectar_db(); cur = conn.cursor()
                     
-                conn.commit()
-                conn.close()
-                st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
-                st.success("Respuesta fija guardada con éxito.")
-                st.rerun()
-            except Exception as e:
-                if 'conn' in locals() and conn:
-                    conn.rollback()
+                    # Asegurar tabla en Postgres
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS respuestas_fijas (
+                            id SERIAL PRIMARY KEY, 
+                            titulo TEXT, 
+                            texto TEXT
+                        )
+                    """)
+                    
+                    id_actual = st.session_state.resp_state.get("id")
+                    
+                    if id_actual is not None:
+                        # Actualización explícita por ID
+                        cur.execute("""
+                            UPDATE respuestas_fijas 
+                            SET titulo = %s, texto = %s 
+                            WHERE id = %s
+                        """, (r_titulo.upper(), r_texto, int(id_actual)))
+                        mensaje_exito = "Respuesta fija actualizada con éxito."
+                    else:
+                        # Inserción de nueva respuesta
+                        cur.execute("""
+                            INSERT INTO respuestas_fijas (titulo, texto) 
+                            VALUES (%s, %s)
+                        """, (r_titulo.upper(), r_texto))
+                        mensaje_exito = "Respuesta fija creada con éxito."
+                        
+                    conn.commit()
                     conn.close()
-                st.error(f"Error al guardar la respuesta fija: {e}")
-                
-        elif btn_save_resp:
-            st.warning("⚠️ Debe completar tanto el título corto como el contenido de la respuesta.")
+                    
+                    # Limpiamos el estado por completo
+                    st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
+                    st.success(mensaje_exito)
+                    st.rerun()
+                    
+                except Exception as e:
+                    if 'conn' in locals() and conn:
+                        conn.rollback()
+                        conn.close()
+                    st.error(f"Error al guardar la respuesta fija: {e}")
+            else:
+                st.warning("⚠️ Debe completar tanto el título corto como el contenido de la respuesta.")
             
         st.markdown("---")
         st.markdown("##### Respuestas Fijas Registradas")
@@ -3576,8 +3590,7 @@ elif menu == "⚙️ Configuración de Análisis":
                     try:
                         conn = conectar_db()
                         cur = conn.cursor()
-                        # Verificamos si realmente entra aquí ejecutando el borrado
-                        cur.execute("DELETE FROM respuestas_fijas WHERE id = %s", (r_id,))
+                        cur.execute("DELETE FROM respuestas_fijas WHERE id = %s", (int(r_id),))
                         conn.commit()
                         conn.close()
                         st.success(f"¡Eliminado ID {r_id}!")
