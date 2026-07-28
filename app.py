@@ -3504,8 +3504,13 @@ elif menu == "⚙️ Configuración de Análisis":
             
         if btn_save_resp and r_titulo and r_texto:
             conn = conectar_db(); cur = conn.cursor()
-            cur.execute("""CREATE TABLE IF NOT EXISTS respuestas_fijas (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, texto TEXT)""")
-            
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS respuestas_fijas (
+                    id SERIAL PRIMARY KEY, 
+                    titulo TEXT, 
+                    texto TEXT
+                )
+            """)
             if st.session_state.resp_state["id"]:
                 cur.execute("UPDATE respuestas_fijas SET titulo = ?, texto = ? WHERE id = ?", (r_titulo.upper(), r_texto, st.session_state.resp_state["id"]))
             else:
