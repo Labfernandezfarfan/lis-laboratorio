@@ -962,9 +962,9 @@ if st.button("📥 Descargar Respaldo (Excel)", use_container_width=True, help="
             conn.close()
         st.error(f"Error al generar el respaldo: {e}")
 
-st.markdown("---")
-st.subheader("🔄 Restaurar Copia de Seguridad")
-st.info("ℹ️ Nota: La restauración en bases de datos en la nube (Supabase) se realiza de forma segura mediante importación directa o scripts SQL para evitar corromper las relaciones entre pacientes y órdenes.")
+    st.markdown("---")
+    st.subheader("🔄 Restaurar Copia de Seguridad")
+    st.info("ℹ️ Nota: La restauración en bases de datos en la nube (Supabase) se realiza de forma segura mediante importación directa o scripts SQL para evitar corromper las relaciones entre pacientes y órdenes.")
 
     st.markdown("---")
     if st.button("🚪 Cerrar Sesión", type="secondary", use_container_width=True):
