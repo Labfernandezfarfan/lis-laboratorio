@@ -913,17 +913,15 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 💾 Copia de Seguridad")
-st.write("Genera y descarga un respaldo completo de las tablas de tu base de datos en la nube.")
+    st.write("Genera y descarga un respaldo completo de las tablas de tu base de datos en la nube.")
 
-from datetime import datetime
-import pandas as pd
-import io
+    from datetime import datetime
+    import pandas as pd
+    import io
 
-# 1. Botón de Descarga (Respaldo)
-if st.button("📥 Descargar Respaldo (Excel)", use_container_width=True, help="Haz clic para descargar una copia de seguridad de todas las tablas."):
+    # Generamos los datos directamente o permitimos descargarlo con un solo botón fluido
     try:
         conn = conectar_db()
-        # Tablas principales de tu base de datos en Supabase
         tablas_a_respaldar = [
             "pacientes", 
             "ordenes", 
@@ -942,25 +940,26 @@ if st.button("📥 Descargar Respaldo (Excel)", use_container_width=True, help="
                     df = pd.read_sql(f"SELECT * FROM {tabla}", conn)
                     df.to_excel(writer, sheet_name=tabla, index=False)
                 except Exception:
-                    # Si alguna tabla no existe aún, se omite para evitar cortes
                     pass
         conn.close()
         
         bytes_excel = output.getvalue()
         fecha_backup = datetime.now().strftime("%Y-%m-%d_%H-%M")
         
-        st.success("¡Respaldo generado con éxito!")
+        # El botón de descarga nativo visible y activo siempre
         st.download_button(
-            label="💾 Guardar Archivo de Respaldo .xlsx",
+            label="📥 Descargar Respaldo de Base de Datos (.xlsx)",
             data=bytes_excel,
             file_name=f"backup_laboratorio_{fecha_backup}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
+            use_container_width=True,
+            help="Haz clic para descargar una copia de seguridad directa de todas las tablas."
         )
+        
     except Exception as e:
         if 'conn' in locals() and conn:
             conn.close()
-        st.error(f"Error al generar el respaldo: {e}")
+        st.error(f"Error al preparar el respaldo: {e}")
 
     st.markdown("---")
     st.subheader("🔄 Restaurar Copia de Seguridad")
