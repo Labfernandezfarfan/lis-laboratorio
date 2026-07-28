@@ -3168,7 +3168,14 @@ elif menu == "⚙️ Configuración de Análisis":
                     
                 if submit_p and cod_p_input and nom_p_input:
                     conn = conectar_db(); cur = conn.cursor()
-                    cur.execute("INSERT OR REPLACE INTO nomenclador (codigo, nombre, unidades_bioquimicas) VALUES (?, ?, ?)", (cod_p_input, nom_p_input.upper(), ub_p_input))
+                    cur.execute("""
+                        INSERT INTO nomenclador (codigo, nombre, unidades_bioquimicas) 
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (codigo) 
+                        DO UPDATE SET 
+                            nombre = EXCLUDED.nombre,
+                            unidades_bioquimicas = EXCLUDED.unidades_bioquimicas
+                    """, (cod_p_input, nom_p_input.upper(), ub_p_input))
                     conn.commit(); conn.close()
                     st.session_state.perfil_edit_state = {"codigo": "", "nombre": "", "modo_edicion": False, "ub_f": 0.0}
                     st.success("Perfil Base guardado con éxito."); st.rerun()
