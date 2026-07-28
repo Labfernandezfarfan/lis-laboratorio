@@ -3168,19 +3168,23 @@ elif menu == "⚙️ Configuración de Análisis":
                     
                 if submit_p and cod_p_input and nom_p_input:
                     try:
-                        conn = conectar_db(); cur = conn.cursor()
+                        conn = conectar_db()
+                        cur = conn.cursor()
                         cur.execute("""
                             INSERT INTO nomenclador (codigo, nombre, unidades_bioquimicas) 
                             VALUES (%s, %s, %s)
                         """, (cod_p_input, nom_p_input.upper(), ub_p_input))
-                        conn.commit(); conn.close()
+                        conn.commit()
+                        conn.close()
                         st.session_state.perfil_edit_state = {"codigo": "", "nombre": "", "modo_edicion": False, "ub_f": 0.0}
-                        st.success("Perfil Base guardado con éxito."); st.rerun()
+                        st.success("Perfil Base guardado con éxito.")
+                        st.rerun()
                     except Exception as e:
                         if 'conn' in locals() and conn:
                             conn.rollback()
                             conn.close()
-                        st.error(f"Error al guardar (es posible que el código ya exista): {e}")
+                        # AQUÍ CAMBIAMOS PARA QUE TE MUESTRE EL ERROR REAL EN PANTALLA:
+                        st.error(f"⚠️ ERROR DETALLADO DE SUPABASE: {e}")
                 if cancelar_p:
                     st.session_state.perfil_edit_state = {"codigo": "", "nombre": "", "modo_edicion": False, "ub_f": 0.0}; st.rerun()
 
