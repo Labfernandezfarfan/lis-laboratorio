@@ -551,10 +551,18 @@ def listar_medicos():
     c.execute("SELECT id, nombre, matricula FROM medicos ORDER BY nombre ASC")
     res = c.fetchall(); conn.close(); return res
 
-def listar_respuestas():
-    conn = conectar_db(); c = conn.cursor()
-    c.execute("SELECT id, texto FROM respuestas_predefinidas ORDER BY texto ASC")
-    res = c.fetchall(); conn.close(); return res
+def listar_respuestas_fijas():
+    try:
+        conn = conectar_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id, titulo, texto FROM respuestas_fijas ORDER BY titulo")
+        filas = cur.fetchall()
+        conn.close()
+        return filas
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.close()
+        return []
 
 def listar_bioquimicos():
     conn = conectar_db(); c = conn.cursor()
@@ -3503,45 +3511,57 @@ elif menu == "⚙️ Configuración de Análisis":
             btn_save_resp = st.form_submit_button("💾 Guardar Respuesta Fija")
             
         if btn_save_resp and r_titulo and r_texto:
-            conn = conectar_db(); cur = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS respuestas_fijas (
-                    id SERIAL PRIMARY KEY, 
-                    titulo TEXT, 
-                    texto TEXT
-                )
-            """)
-            if st.session_state.resp_state["id"]:
-                cur.execute("UPDATE respuestas_fijas SET titulo = ?, texto = ? WHERE id = ?", (r_titulo.upper(), r_texto, st.session_state.resp_state["id"]))
-            else:
-                try:
+            try:
+                conn = conectar_db(); cur = conn.cursor()
+                
+                # Asegurar tabla en Postgres
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS respuestas_fijas (
+                        id SERIAL PRIMARY KEY, 
+                        titulo TEXT, 
+                        texto TEXT
+                    )
+                """)
+                
+                if st.session_state.resp_state["id"]:
+                    # Actualización con %s
+                    cur.execute("""
+                        UPDATE respuestas_fijas 
+                        SET titulo = %s, texto = %s 
+                        WHERE id = %s
+                    """, (r_titulo.upper(), r_texto, st.session_state.resp_state["id"]))
+                else:
+                    # Inserción con %s
                     cur.execute("""
                         INSERT INTO respuestas_fijas (titulo, texto) 
                         VALUES (%s, %s)
                     """, (r_titulo.upper(), r_texto))
-                    conn.commit()
+                    
+                conn.commit()
+                conn.close()
+                st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
+                st.success("Respuesta fija guardada con éxito.")
+                st.rerun()
+            except Exception as e:
+                if 'conn' in locals() and conn:
+                    conn.rollback()
                     conn.close()
-                except Exception as e:
-                    if 'conn' in locals() and conn:
-                        conn.rollback()
-                        conn.close()
-                    st.error(f"Error al guardar la respuesta fija: {e}")
-            st.session_state.resp_state = {"id": None, "titulo": "", "texto": ""}
-            st.success("Respuesta fija guardada con éxito.")
-            st.rerun()
+                st.error(f"Error al guardar la respuesta fija: {e}")
+                
         elif btn_save_resp:
             st.warning("⚠️ Debe completar tanto el título corto como el contenido de la respuesta.")
             
         st.markdown("---")
         st.markdown("##### Respuestas Fijas Registradas")
+        
         try:
             conn = conectar_db(); cur = conn.cursor()
-            cur.execute("CREATE TABLE IF NOT EXISTS respuestas_fijas (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, texto TEXT)")
             cur.execute("SELECT id, titulo, texto FROM respuestas_fijas ORDER BY titulo ASC")
             resp_db = cur.fetchall()
             conn.close()
-        except:
+        except Exception as e:
             resp_db = []
+            st.error(f"Error al cargar las respuestas: {e}")
             
         for r_id, r_tit, r_txt in resp_db:
             col_r1, col_r2, col_r3 = st.columns([6, 1, 1])
@@ -3553,10 +3573,17 @@ elif menu == "⚙️ Configuración de Análisis":
                     st.rerun()
             with col_r3:
                 if st.button("🗑️", key=f"del_resp_{r_id}"):
-                    conn = conectar_db(); cur = conn.cursor()
-                    cur.execute("DELETE FROM respuestas_fijas WHERE id = ?", (r_id,))
-                    conn.commit(); conn.close()
-                    st.rerun()                        
+                    try:
+                        conn = conectar_db(); cur = conn.cursor()
+                        # Borrado con %s
+                        cur.execute("DELETE FROM respuestas_fijas WHERE id = %s", (r_id,))
+                        conn.commit(); conn.close()
+                        st.rerun()
+                    except Exception as e:
+                        if 'conn' in locals() and conn:
+                            conn.rollback()
+                            conn.close()
+                        st.error(f"Error al eliminar: {e}")
     with t_firmas:
         st.subheader("🖼️ Gestión de Identidad Visual (Logos y Firmas)")
         
