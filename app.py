@@ -3111,7 +3111,7 @@ elif menu == "⚙️ Configuración de Análisis":
                     cur.execute("""
                         INSERT OR REPLACE INTO determinaciones 
                         (codigo_item, sub_item, text_unidad, valores_referencia, es_titulo, ub_facturacion, formula_calculo) 
-                        VALUES (%s, %s, %s, %s, %s, $s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (c_i, s_n, u_m, r_f, es_t, ub_fac_input, f_m))
                     
                     conn.commit(); conn.close()
