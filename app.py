@@ -637,7 +637,7 @@ def obtener_sub_items_de_practica(codigo_perfil):
     c.execute("""
         SELECT pd.id, d.codigo_item, d.sub_item, d.text_unidad, d.valores_referencia, d.es_titulo, pd.formula, pd.orden_visual, pd.metodo, pd.en_negrita, d.ub_facturacion 
         FROM perfil_detalles pd JOIN determinaciones d ON pd.codigo_item = d.codigo_item
-        WHERE pd.codigo_perfil = ? ORDER BY pd.orden_visual ASC, pd.id ASC
+        WHERE pd.codigo_perfil = %s ORDER BY pd.orden_visual ASC, pd.id ASC
     """, (codigo_perfil,))
     res = c.fetchall(); conn.close(); return res
 
@@ -665,7 +665,7 @@ def buscar_pacientes_filtro(termino):
 def guardar_paciente(nombre, dni, f_nac, edad, sexo, telefono, nro_afiliado):
     conn = conectar_db(); c = conn.cursor()
     try:
-        c.execute("INSERT INTO pacientes (nombre, dni, fecha_nacimiento, edad, sexo, telefono, nro_afiliado) VALUES (?, ?, ?, ?, ?, ?, ?)", (nombre.upper(), dni, f_nac, edad, sexo, telefono, nro_afiliado))
+        c.execute("INSERT INTO pacientes (nombre, dni, fecha_nacimiento, edad, sexo, telefono, nro_afiliado) VALUES (%s, %s, %s, %s, %s, %s, %s)", (nombre.upper(), dni, f_nac, edad, sexo, telefono, nro_afiliado))
         conn.commit(); exito = True
     except sqlite3.IntegrityError: exito = False
     conn.close(); return exito
@@ -676,9 +676,9 @@ def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, t
     try:
         c.execute("""
             UPDATE ordenes 
-            SET nro_protocolo = ?, fecha = ?, medico_id = ?, obra_social_id = ?, 
-                bioquimico_firma_id = ?, tipo_paciente = ?, nro_orden_internacion = ?
-            WHERE id = ?
+            SET nro_protocolo = %s, fecha = %s, medico_id = %s, obra_social_id = %s, 
+                bioquimico_firma_id = %s, tipo_paciente = %s, nro_orden_internacion = %s
+            WHERE id = %s
         """, (nro_proto, fecha, medico_id, os_id, b_id, tipo_p, nro_ord_int, orden_id))
         conn.commit(); exito = True
     except sqlite3.IntegrityError:
@@ -688,7 +688,7 @@ def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, t
 def eliminar_item_de_orden(orden_id, codigo_item):
     """Elimina una determinación específica de un protocolo."""
     conn = conectar_db(); c = conn.cursor()
-    c.execute("DELETE FROM resultados_items WHERE orden_id = ? AND codigo_item = ?", (orden_id, codigo_item))
+    c.execute("DELETE FROM resultados_items WHERE orden_id = %s AND codigo_item = %s", (orden_id, codigo_item))
     conn.commit(); conn.close()
 
 def agregar_perfil_a_orden_existente(orden_id, cod_p):
@@ -696,11 +696,11 @@ def agregar_perfil_a_orden_existente(orden_id, cod_p):
     conn = conectar_db(); c = conn.cursor()
     sub_items = obtener_sub_items_de_practica(cod_p)
     for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-        c.execute("SELECT id FROM resultados_items WHERE orden_id = ? AND codigo_item = ?", (orden_id, c_item))
+        c.execute("SELECT id FROM resultados_items WHERE orden_id = %s AND codigo_item = %s", (orden_id, c_item))
         if not c.fetchone():
             c.execute("""
                 INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, '', %s, %s, %s, %s, %s, %s, %s, %s)
             """, (orden_id, cod_p, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
     conn.commit(); conn.close()
 
@@ -711,8 +711,8 @@ def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, t
     try:
         c.execute("""
             UPDATE ordenes 
-            SET nro_protocolo = ?, fecha = ?, medico_id = ?, obra_social_id = ?, 
-                bioquimico_firma_id = ?, tipo_paciente = ?, nro_orden_internacion = ?
+            SET nro_protocolo = %s, fecha = %s, medico_id = %s, obra_social_id = %s, 
+                bioquimico_firma_id = %s, tipo_paciente = %s, nro_orden_internacion = %s
             WHERE id = ?
         """, (nro_proto, fecha, medico_id, os_id, b_id, tipo_p, nro_ord_int, orden_id))
         conn.commit()
@@ -726,7 +726,7 @@ def eliminar_item_de_orden(orden_id, codigo_item):
     """Elimina una determinación específica de un protocolo."""
     conn = conectar_db()
     c = conn.cursor()
-    c.execute("DELETE FROM resultados_items WHERE orden_id = ? AND codigo_item = ?", (orden_id, codigo_item))
+    c.execute("DELETE FROM resultados_items WHERE orden_id = %s AND codigo_item = %s", (orden_id, codigo_item))
     conn.commit()
     conn.close()
 
@@ -734,8 +734,8 @@ def eliminar_protocolo_completo(orden_id):
     """Borra de forma definitiva un protocolo y todos sus resultados asociados."""
     conn = conectar_db()
     c = conn.cursor()
-    c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id,))
-    c.execute("DELETE FROM ordenes WHERE id = ?", (orden_id,))
+    c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
+    c.execute("DELETE FROM ordenes WHERE id = %s", (orden_id,))
     conn.commit()
     conn.close()
 
@@ -745,11 +745,11 @@ def agregar_perfil_a_orden_existente(orden_id, cod_p):
     c = conn.cursor()
     sub_items = obtener_sub_items_de_practica(cod_p)
     for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-        c.execute("SELECT id FROM resultados_items WHERE orden_id = ? AND codigo_item = ?", (orden_id, c_item))
+        c.execute("SELECT id FROM resultados_items WHERE orden_id = %s AND codigo_item = %s", (orden_id, c_item))
         if not c.fetchone():
             c.execute("""
                 INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, '', %s, %s, %s, %s, %s, %s, %s, %s)
             """, (orden_id, cod_p, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
     conn.commit()
     conn.close()
@@ -773,7 +773,7 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     try:
         c.execute("""
             INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
-            VALUES (?, ?, ?, ?, ?, 0.0, 'Pendiente', ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
         """, (nro_proto, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
         orden_id = c.lastrowid
     except sqlite3.IntegrityError:
@@ -785,7 +785,7 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
             # CORREGIDO: Dejamos el '?' para el resultado y pasamos el '' abajo en la tupla
             c.execute("""
                 INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
             
     conn.commit(); conn.close(); return orden_id
@@ -870,7 +870,7 @@ def obtener_items_para_cargar(orden_id):
             COALESCE(ri.es_particular, 0) AS es_particular -- 👈 Agregado clave (posición 13 / índice 13 o -1)
         FROM resultados_items ri
         LEFT JOIN determinaciones d ON ri.codigo_item = d.codigo_item
-        WHERE ri.orden_id = ? 
+        WHERE ri.orden_id = %s 
         ORDER BY ri.codigo_perfil ASC, CAST(ri.orden_visual AS INTEGER) ASC, ri.id ASC
     """, (orden_id,))
     res = c.fetchall(); conn.close(); return res
@@ -3098,7 +3098,7 @@ elif menu == "⚙️ Configuración de Análisis":
                     conn = conectar_db(); cur = conn.cursor()
                     es_edicion_actual = st.session_state.det_state.get("es_edicion", False)
                     if not es_edicion_actual:
-                        cur.execute("SELECT 1 FROM determinaciones WHERE codigo_item = ?", (c_i,))
+                        cur.execute("SELECT 1 FROM determinaciones WHERE codigo_item = %s", (c_i,))
                         existe = cur.fetchone()
                         if existe:
                             st.error(f"⚠️ El código **'{c_i}'** ya existe en la base de datos. Utiliza otro código o edita el existente desde la lista.")
