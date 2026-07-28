@@ -913,49 +913,58 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 💾 Copia de Seguridad")
-    
-    # Obtenemos la ruta exacta a "laboratorio.db" usando la misma lógica
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(base_dir, "laboratorio.db")
-    
-    if os.path.exists(db_path):
-        with open(db_path, "rb") as f:
-            bytes_db = f.read()
+st.write("Genera y descarga un respaldo completo de las tablas de tu base de datos en la nube.")
+
+from datetime import datetime
+import pandas as pd
+import io
+
+# 1. Botón de Descarga (Respaldo)
+if st.button("📥 Descargar Respaldo (Excel)", use_container_width=True, help="Haz clic para descargar una copia de seguridad de todas las tablas."):
+    try:
+        conn = conectar_db()
+        # Tablas principales de tu base de datos en Supabase
+        tablas_a_respaldar = [
+            "pacientes", 
+            "ordenes", 
+            "determinaciones", 
+            "detalle_orden", 
+            "respuestas_fijas", 
+            "medicos", 
+            "obras_sociales", 
+            "configuracion_general"
+        ]
         
-        from datetime import datetime
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            for tabla in tablas_a_respaldar:
+                try:
+                    df = pd.read_sql(f"SELECT * FROM {tabla}", conn)
+                    df.to_excel(writer, sheet_name=tabla, index=False)
+                except Exception:
+                    # Si alguna tabla no existe aún, se omite para evitar cortes
+                    pass
+        conn.close()
+        
+        bytes_excel = output.getvalue()
         fecha_backup = datetime.now().strftime("%Y-%m-%d_%H-%M")
         
+        st.success("¡Respaldo generado con éxito!")
         st.download_button(
-            label="📥 Descargar Backup (.db)",
-            data=bytes_db,
-            file_name=f"backup_laboratorio_{fecha_backup}.db",
-            mime="application/x-sqlite3",
-            use_container_width=True,
-            help="Haz clic para descargar una copia de seguridad local de la base de datos."
+            label="💾 Guardar Archivo de Respaldo .xlsx",
+            data=bytes_excel,
+            file_name=f"backup_laboratorio_{fecha_backup}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
         )
-        st.markdown("---")
-        st.subheader("🔄 Restaurar Copia de Seguridad")
-        st.write("Sube tu archivo de respaldo (`.db`) para reemplazar la base de datos actual.")
-        
-        # Componente para subir el archivo .db
-        archivo_subido = st.file_uploader("Selecciona el archivo de backup (.db)", type=["db"], key="uploader_backup_db")
-        
-        if archivo_subido is not None:
-            # Botón de confirmación para evitar reemplazos accidentales
-            if st.button("⚠️ Confirmar y Restaurar Base de Datos", type="primary"):
-                try:
-                    # Usamos la misma variable 'db_path' que ya tienes definida en tu sistema
-                    with open(db_path, "wb") as f:
-                        f.write(archivo_subido.getbuffer())
-                        
-                    st.success("¡Base de datos restaurada con éxito! Recargando el sistema...")
-                    import time
-                    time.sleep(1.5)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al restaurar la base de datos: {e}")    
-    else:
-        st.warning("⚠️ No se encontró la base de datos activa.")
+    except Exception as e:
+        if 'conn' in locals() and conn:
+            conn.close()
+        st.error(f"Error al generar el respaldo: {e}")
+
+st.markdown("---")
+st.subheader("🔄 Restaurar Copia de Seguridad")
+st.info("ℹ️ Nota: La restauración en bases de datos en la nube (Supabase) se realiza de forma segura mediante importación directa o scripts SQL para evitar corromper las relaciones entre pacientes y órdenes.")
 
     st.markdown("---")
     if st.button("🚪 Cerrar Sesión", type="secondary", use_container_width=True):
