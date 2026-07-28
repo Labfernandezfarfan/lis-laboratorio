@@ -917,43 +917,26 @@ with st.sidebar:
 
     from datetime import datetime
     import pandas as pd
-    import io
 
-    # Generamos los datos directamente o permitimos descargarlo con un solo botón fluido
     try:
         conn = conectar_db()
-        tablas_a_respaldar = [
-            "pacientes", 
-            "ordenes", 
-            "determinaciones", 
-            "detalle_orden", 
-            "respuestas_fijas", 
-            "medicos", 
-            "obras_sociales", 
-            "configuracion_general"
-        ]
-        
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            for tabla in tablas_a_respaldar:
-                try:
-                    df = pd.read_sql(f"SELECT * FROM {tabla}", conn)
-                    df.to_excel(writer, sheet_name=tabla, index=False)
-                except Exception:
-                    pass
+        # Tomamos la tabla principal de pacientes o hacemos un resumen
+        df_pacientes = pd.read_sql("SELECT * FROM pacientes", conn)
+        df_ordenes = pd.read_sql("SELECT * FROM ordenes", conn)
         conn.close()
         
-        bytes_excel = output.getvalue()
+        # Unimos o preparamos un CSV limpio con los datos esenciales de la base
+        # O convertimos los datos a texto CSV directamente
+        csv_data = df_pacientes.to_csv(index=False).encode('utf-8')
         fecha_backup = datetime.now().strftime("%Y-%m-%d_%H-%M")
         
-        # El botón de descarga nativo visible y activo siempre
+        st.success("¡Respaldo listo para descargar!")
         st.download_button(
-            label="📥 Descargar Respaldo de Base de Datos (.xlsx)",
-            data=bytes_excel,
-            file_name=f"backup_laboratorio_{fecha_backup}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            help="Haz clic para descargar una copia de seguridad directa de todas las tablas."
+            label="📥 Descargar Respaldo de Pacientes (.csv)",
+            data=csv_data,
+            file_name=f"backup_pacientes_{fecha_backup}.csv",
+            mime="text/csv",
+            use_container_width=True
         )
         
     except Exception as e:
@@ -964,7 +947,6 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🔄 Restaurar Copia de Seguridad")
     st.info("ℹ️ Nota: La restauración en bases de datos en la nube (Supabase) se realiza de forma segura mediante importación directa o scripts SQL para evitar corromper las relaciones entre pacientes y órdenes.")
-
     st.markdown("---")
     if st.button("🚪 Cerrar Sesión", type="secondary", use_container_width=True):
         st.session_state.clear()
