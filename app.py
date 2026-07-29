@@ -1597,7 +1597,7 @@ elif menu == "✏️ Modificar Protocolos":
         # 2. Consultamos el estado real del protocolo usando ese ID
         conn_est = conectar_db()
         c_est = conn_est.cursor()
-        c_est.execute("SELECT estado FROM ordenes WHERE id = ?", (orden_id,))
+        c_est.execute("SELECT estado FROM ordenes WHERE id = %s", (orden_id,))
         res_estado = c_est.fetchone()
         conn_est.close()
         
@@ -1610,7 +1610,7 @@ elif menu == "✏️ Modificar Protocolos":
             st.error("🛑 **Resultados Bloqueados:** Este protocolo ya se encuentra **VALIDADO**.")
             if st.button("🔓 Desvalidar Protocolo para Modificar", type="secondary", use_container_width=True, key=f"btn_desvalidar_{orden_id}"):
                 conn = conectar_db(); c = conn.cursor()
-                c.execute("UPDATE ordenes SET estado = 'Pendiente' WHERE id = ?", (orden_id,))
+                c.execute("UPDATE ordenes SET estado = 'Pendiente' WHERE id = %s", (orden_id,))
                 conn.commit(); conn.close()
                 st.toast("🔓 Protocolo liberado. Ya puede modificarlo.", icon="🔓")
                 st.rerun()
