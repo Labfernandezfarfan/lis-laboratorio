@@ -1839,11 +1839,11 @@ elif menu == "✏️ Modificar Protocolos":
                 conn = conectar_db(); c = conn.cursor()
                 
                 # 1. Conservamos de forma segura ABSOLUTAMENTE TODO lo que ya esté escrito en la pantalla
-                c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = ?", (orden_id_mod,))
+                c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
                 valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
                 
                 # 2. Limpiamos las filas para reacomodar el orden visual
-                c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id_mod,))
+                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
                 
                 # 3. Reinyectamos las prácticas usando el índice estricto de la lista
                 for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
