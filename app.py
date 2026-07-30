@@ -1865,7 +1865,7 @@ elif menu == "✏️ Modificar Protocolos":
                         resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
                         
                         c.execute("""
-                            INSERT INTO resultados_items (
+                            INSERT OR REPLACE INTO resultados_items (
                                 orden_id, codigo_perfil, codigo_item, sub_item, resultado, 
                                 unidad, valores_referencia, es_titulo, formula, orden_visual, 
                                 metodo, en_negrita, ub_facturacion, es_particular
