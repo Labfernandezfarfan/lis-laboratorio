@@ -1867,10 +1867,10 @@ elif menu == "✏️ Modificar Protocolos":
                         # Usamos %s en lugar de ? para PostgreSQL
                         c.execute("""
                             INSERT INTO resultados_items (
-                                orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
-                                unidad, valores_referencia, es_titulo, formula, orden_visual, 
-                                metodo, en_negrita, ub_facturacion, es_particular
-                            ) 
+                            orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
+                            unidad, valores_referencia, es_titulo, formula, orden_visual, 
+                            metodo, en_negrita, ub_facturacion, es_particular
+                        )
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, (
                             orden_id, 
