@@ -1941,7 +1941,6 @@ elif menu == "🧪 Área Analítica (Carga)":
         except Exception:
             pass
 
-        # Obtenemos y ordenamos de forma estricta los ítems analíticos de la base de datos
         try:
             conn_items = conectar_db()
             cur_items = conn_items.cursor()
@@ -1950,7 +1949,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                        resultado, es_titulo, formula, metodo, en_negrita, ub_facturacion, orden_visual, es_particular
                 FROM resultados_items 
                 WHERE orden_id = ?
-                ORDER BY orden_visual ASC, id ASC
+                ORDER BY orden_visual ASC
             """, (orden_id,))
             items = cur_items.fetchall()
             conn_items.close()
