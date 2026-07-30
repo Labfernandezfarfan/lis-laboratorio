@@ -1843,20 +1843,13 @@ elif menu == "✏️ Modificar Protocolos":
                 valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
                 
                 # 1. Borramos los ítems anteriores del protocolo para evitar conflictos
-                try:
-                    c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id,))
-                except Exception as e:
-                    import streamlit as st
-                    st.error(f"🚨 ERROR EXACTO EN EL DELETE: {e}")
-                    st.stop()
+                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
 
                 # 2. Reinyectamos las prácticas usando el índice estricto de la lista
                 for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
                     orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
                     sub_items = obtener_sub_items_de_practica(perf_id)
                     val_part_int = 1 if es_particular_bool else 0
-                    
-                    # ... (sigue el resto de tu código con el for y el INSERT) ...
                     
                     for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
                         codigo_limpio = str(c_item).strip()
@@ -1871,14 +1864,14 @@ elif menu == "✏️ Modificar Protocolos":
                         # Recuperamos el resultado exacto que ya estaba guardado previamente
                         resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
                         
-                        # CORRECCIÓN ACÁ: Usamos perfil_codigo en lugar de codigo_perfil
+                        # Usamos %s en lugar de ? para PostgreSQL
                         c.execute("""
                             INSERT INTO resultados_items (
                                 orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
                                 unidad, valores_referencia, es_titulo, formula, orden_visual, 
                                 metodo, en_negrita, ub_facturacion, es_particular
                             ) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, (
                             orden_id, 
                             perf_id, 
