@@ -1843,13 +1843,20 @@ elif menu == "✏️ Modificar Protocolos":
                 valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
                 
                 # 1. Borramos los ítems anteriores del protocolo para evitar conflictos
-                c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id,))
+                try:
+                    c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id,))
+                except Exception as e:
+                    import streamlit as st
+                    st.error(f"🚨 ERROR EXACTO EN EL DELETE: {e}")
+                    st.stop()
 
                 # 2. Reinyectamos las prácticas usando el índice estricto de la lista
                 for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
                     orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
                     sub_items = obtener_sub_items_de_practica(perf_id)
                     val_part_int = 1 if es_particular_bool else 0
+                    
+                    # ... (sigue el resto de tu código con el for y el INSERT) ...
                     
                     for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
                         codigo_limpio = str(c_item).strip()
