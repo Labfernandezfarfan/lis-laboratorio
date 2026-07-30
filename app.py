@@ -1498,7 +1498,28 @@ elif menu == "🛒 Carga de Protocolos":
                         except Exception:
                             pass 
                         
-                        orden_del_perfil = 1
+                        # 3. Actualizamos orden_visual y es_particular usando el índice exacto de la lista
+                        for idx, (cod_p, p_particular, sub_items) in enumerate(datos_perfiles):
+                            # (idx + 1) respeta estrictamente el orden visual de los botones de subir/bajar
+                            orden_del_perfil = idx + 1
+                            
+                            for sub in sub_items:
+                                c_item = sub[1]
+                                s_ord = sub[8] if len(sub) > 8 else 0
+                                
+                                try:
+                                    num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
+                                except Exception:
+                                    num_orden_interno = 0
+                                
+                                # Multiplicador 1000 para evitar solapamientos entre perfiles largos
+                                orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
+                                
+                                c.execute("""
+                                    UPDATE resultados_items 
+                                    SET orden_visual = ?, es_particular = ? 
+                                    WHERE orden_id = ? AND codigo_perfil = ? AND codigo_item = ?
+                                """, (orden_visual_calculado, p_particular, orden_id, cod_p, c_item))
                         
                         # 3. Actualizamos orden_visual y es_particular
                         for cod_p, p_particular, sub_items in datos_perfiles:
@@ -1824,9 +1845,9 @@ elif menu == "✏️ Modificar Protocolos":
                 # 2. Limpiamos las filas para reacomodar el orden visual
                 c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id_mod,))
                 
-                # 3. Reinyectamos las prácticas en el nuevo orden estricto de la lista y guardando el flag particular
-                orden_del_perfil = 1
-                for perf_id, _, es_particular_bool in st.session_state.perfiles_editar:
+                # 3. Reinyectamos las prácticas usando el índice estricto de la lista
+                for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
+                    orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
                     sub_items = obtener_sub_items_de_practica(perf_id)
                     val_part_int = 1 if es_particular_bool else 0
                     
@@ -1835,10 +1856,10 @@ elif menu == "✏️ Modificar Protocolos":
                         
                         try:
                             num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
-                        except:
+                        except Exception:
                             num_orden_interno = 0
                             
-                        orden_visual_calculado = (orden_del_perfil * 100) + num_orden_interno
+                        orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
                         
                         # Recuperamos el resultado exacto que ya estaba guardado
                         resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
@@ -1854,8 +1875,6 @@ elif menu == "✏️ Modificar Protocolos":
                             orden_id_mod, perf_id, c_item, s_nombre, resultado_a_preservar, s_uni, 
                             s_ref, s_tit, s_form, orden_visual_calculado, s_met, s_neg, s_ub_fac, val_part_int
                         ))
-                    
-                    orden_del_perfil += 1
                 
                 conn.commit(); conn.close()
                 
@@ -1939,9 +1958,10 @@ elif menu == "🧪 Área Analítica (Carga)":
             items = obtener_items_para_cargar(orden_id)
         
         try:
-            items = sorted(items, key=lambda x: (int(x[12]) if x[12] is not None else 9999, x[0]))
+            # Índice 12 corresponde a orden_visual en la tupla de resultados_items
+            items = sorted(items, key=lambda x: (int(x[12]) if x[12] is not None else 9999))
         except Exception:
-            items = sorted(items, key=lambda x: (x[1], x[0]))
+            pass
 
         resp_list = [r[1] for r in listar_respuestas_fijas()]
         
