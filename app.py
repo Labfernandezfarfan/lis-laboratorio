@@ -1843,7 +1843,7 @@ elif menu == "✏️ Modificar Protocolos":
                 valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
                 
                 # 1. Borramos los ítems anteriores del protocolo para evitar conflictos
-                c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id_mod,))
+                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
 
                 # 2. Reinyectamos las prácticas usando el índice estricto de la lista
                 for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
