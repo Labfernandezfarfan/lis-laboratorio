@@ -1842,10 +1842,10 @@ elif menu == "✏️ Modificar Protocolos":
                 c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
                 valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
                 
-                # 2. Limpiamos las filas para reacomodar el orden visual
-                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
-                
-                # 3. Reinyectamos las prácticas usando el índice estricto de la lista
+                # 1. Borramos los ítems anteriores del protocolo para evitar conflictos de duplicidad
+                c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id_mod,))
+
+                # 2. Reinyectamos las prácticas usando el índice estricto de la lista
                 for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
                     orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
                     sub_items = obtener_sub_items_de_practica(perf_id)
@@ -1861,11 +1861,12 @@ elif menu == "✏️ Modificar Protocolos":
                             
                         orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
                         
-                        # Recuperamos el resultado exacto que ya estaba guardado
+                        # Recuperamos el resultado exacto que ya estaba guardado previamente
                         resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
                         
+                        # Volvemos a usar un INSERT estándar ya que la tabla está limpia para este orden_id
                         c.execute("""
-                            INSERT OR REPLACE INTO resultados_items (
+                            INSERT INTO resultados_items (
                                 orden_id, codigo_perfil, codigo_item, sub_item, resultado, 
                                 unidad, valores_referencia, es_titulo, formula, orden_visual, 
                                 metodo, en_negrita, ub_facturacion, es_particular
