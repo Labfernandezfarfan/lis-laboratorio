@@ -1842,8 +1842,8 @@ elif menu == "✏️ Modificar Protocolos":
                 c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
                 valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
                 
-                # 1. Borramos los ítems anteriores del protocolo para evitar conflictos de duplicidad
-                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
+                # 1. Borramos los ítems anteriores del protocolo para evitar conflictos
+                c.execute("DELETE FROM resultados_items WHERE orden_id = ?", (orden_id_mod,))
 
                 # 2. Reinyectamos las prácticas usando el índice estricto de la lista
                 for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
@@ -1864,7 +1864,7 @@ elif menu == "✏️ Modificar Protocolos":
                         # Recuperamos el resultado exacto que ya estaba guardado previamente
                         resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
                         
-                        # Volvemos a usar un INSERT estándar ya que la tabla está limpia para este orden_id
+                        # Inserción con cantidad exacta de columnas y parámetros (14 elementos cada uno)
                         c.execute("""
                             INSERT INTO resultados_items (
                                 orden_id, codigo_perfil, codigo_item, sub_item, resultado, 
@@ -1873,8 +1873,20 @@ elif menu == "✏️ Modificar Protocolos":
                             ) 
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
-                            orden_id_mod, perf_id, c_item, s_nombre, resultado_a_preservar, s_uni, 
-                            s_ref, s_tit, s_form, orden_visual_calculado, s_met, s_neg, s_ub_fac, val_part_int
+                            orden_id_mod, 
+                            perf_id, 
+                            c_item, 
+                            s_nombre, 
+                            resultado_a_preservar, 
+                            s_uni, 
+                            s_ref, 
+                            s_tit, 
+                            s_form, 
+                            orden_visual_calculado, 
+                            s_met, 
+                            s_neg, 
+                            s_ub_fac, 
+                            val_part_int
                         ))
                 
                 conn.commit(); conn.close()
