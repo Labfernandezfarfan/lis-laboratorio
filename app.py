@@ -699,18 +699,58 @@ def eliminar_item_de_orden(orden_id, codigo_item):
     c.execute("DELETE FROM resultados_items WHERE orden_id = %s AND codigo_item = %s", (orden_id, codigo_item))
     conn.commit(); conn.close()
 
-def agregar_perfil_a_orden_existente(orden_id, cod_p):
+def agregar_perfil_a_orden_existente(orden_id, cod_p, es_particular_bool=False):
     """Agrega todas las determinaciones de un perfil a una orden ya creada sin duplicar."""
     conn = conectar_db(); c = conn.cursor()
+    
+    # 1. Averiguamos cuál es el número de orden visual más alto actual en este protocolo 
+    # para agregar el nuevo perfil al final o calcularle un orden correcto.
+    c.execute("SELECT MAX(orden_visual) FROM resultados_items WHERE orden_id = %s", (orden_id,))
+    res_max = c.fetchone()
+    max_orden_actual = res_max[0] if res_max and res_max[0] is not None else 0
+    
+    # Tomamos una base para el nuevo perfil (por ejemplo, el siguiente bloque de mil)
+    base_nuevo_orden = ((max_orden_actual // 1000) + 1) * 1000
+
     sub_items = obtener_sub_items_de_practica(cod_p)
+    val_part_int = 1 if es_particular_bool else 0
+
     for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+        # Verificamos si ya existe la determinación en la orden
         c.execute("SELECT id FROM resultados_items WHERE orden_id = %s AND codigo_item = %s", (orden_id, c_item))
         if not c.fetchone():
+            try:
+                num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
+            except Exception:
+                num_orden_interno = 0
+                
+            orden_visual_calculado = base_nuevo_orden + num_orden_interno
+
             c.execute("""
-                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (%s, %s, %s, %s, '', %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (orden_id, cod_p, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
-    conn.commit(); conn.close()
+                INSERT INTO resultados_items (
+                    orden_id, codigo_perfil, codigo_item, sub_item, resultado, 
+                    unidad, valores_referencia, es_titulo, formula, orden_visual, 
+                    metodo, en_negrita, ub_facturacion, es_particular
+                ) 
+                VALUES (%s, %s, %s, %s, '', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                orden_id, 
+                cod_p, 
+                c_item, 
+                s_nombre, 
+                s_uni, 
+                s_ref, 
+                s_tit, 
+                s_form, 
+                orden_visual_calculado, 
+                s_met, 
+                s_neg, 
+                s_ub_fac, 
+                val_part_int
+            ))
+            
+    conn.commit()
+    conn.close()
 
 def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, tipo_p, nro_ord_int):
     """Actualiza los datos principales de la orden en la tabla ordenes."""
