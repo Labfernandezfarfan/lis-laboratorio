@@ -1891,7 +1891,7 @@ elif menu == "✏️ Modificar Protocolos":
                         try:
                             c.execute("""
                                 INSERT INTO resultados_items (
-                                    orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
+                                    orden_id, codigo_perfil, codigo_item, sub_item, resultado, 
                                     unidad, valores_referencia, es_titulo, formula, orden_visual, 
                                     metodo, en_negrita, ub_facturacion, es_particular
                                 ) 
