@@ -1877,40 +1877,35 @@ elif menu == "✏️ Modificar Protocolos":
                     for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
                         codigo_limpio = str(c_item).strip()
                         
-                        try:
-                            num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
-                        except Exception:
-                            num_orden_interno = 0
-                            
-                        orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
-                        
-                        # Ahora sí: recuperamos el resultado exacto que ya estaba guardado previamente
-                        resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
-                        
                         # Insertamos nuevamente con el orden visual actualizado
-                        c.execute("""
-                            INSERT INTO resultados_items (
-                                orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
-                                unidad, valores_referencia, es_titulo, formula, orden_visual, 
-                                metodo, en_negrita, ub_facturacion, es_particular
-                            ) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (
-                            orden_id, 
-                            perf_id, 
-                            c_item, 
-                            s_nombre, 
-                            resultado_a_preservar, 
-                            s_uni, 
-                            s_ref, 
-                            s_tit, 
-                            s_form, 
-                            orden_visual_calculado, 
-                            s_met, 
-                            s_neg, 
-                            s_ub_fac, 
-                            val_part_int
-                        )) 
+                        try:
+                            c.execute("""
+                                INSERT INTO resultados_items (
+                                    orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
+                                    unidad, valores_referencia, es_titulo, formula, orden_visual, 
+                                    metodo, en_negrita, ub_facturacion, es_particular
+                                ) 
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """, (
+                                orden_id, 
+                                perf_id, 
+                                c_item, 
+                                s_nombre, 
+                                resultado_a_preservar, 
+                                s_uni, 
+                                s_ref, 
+                                s_tit, 
+                                s_form, 
+                                orden_visual_calculado, 
+                                s_met, 
+                                s_neg, 
+                                s_ub_fac, 
+                                val_part_int
+                            ))
+                        except Exception as e:
+                            import streamlit as st
+                            st.error(f"🚨 ERROR EN EL INSERT: {e}")
+                            st.stop()
                 
                 st.toast("🎉 ¡Estructura modificada y ordenada con éxito!", icon="✅")
                 st.success("💾 ¡El orden personalizado de las determinaciones ha sido actualizado correctamente!")
