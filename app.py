@@ -1854,35 +1854,63 @@ elif menu == "✏️ Modificar Protocolos":
                     for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
                         codigo_limpio = str(c_item).strip()
                         
+                        # 0. Primero rescatamos los resultados que ya estaban cargados en pantalla para no perderlos
+                valores_cargados_previamente = {}
+                try:
+                    c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id,))
+                    for row in c.fetchall():
+                        # row[0] es el código_item, row[1] es el resultado
+                        if row[0] is not None:
+                            valores_cargados_previamente[str(row[0]).strip()] = row[1]
+                except Exception:
+                    pass
+
+                # 1. Borramos los ítems anteriores del protocolo para limpiar y reordenar
+                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
+
+                # 2. Reinyectamos las prácticas usando el índice estricto de la lista y recuperando sus valores
+                for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
+                    orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
+                    sub_items = obtener_sub_items_de_practica(perf_id)
+                    val_part_int = 1 if es_particular_bool else 0
+                    
+                    for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+                        codigo_limpio = str(c_item).strip()
+                        
                         try:
-                            # Usamos %s en lugar de ? para PostgreSQL
-                            c.execute("""
-                                INSERT INTO resultados_items (
-                                    orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
-                                    unidad, valores_referencia, es_titulo, formula, orden_visual, 
-                                    metodo, en_negrita, ub_facturacion, es_particular
-                                ) 
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            """, (
-                                orden_id, 
-                                perf_id, 
-                                c_item, 
-                                s_nombre, 
-                                resultado_a_preservar, 
-                                s_uni, 
-                                s_ref, 
-                                s_tit, 
-                                s_form, 
-                                orden_visual_calculado, 
-                                s_met, 
-                                s_neg, 
-                                s_ub_fac, 
-                                val_part_int
-                            ))
-                        except Exception as e:
-                            import streamlit as st
-                            st.error(f"🚨 Error exacto de Postgres al insertar: {e}")
-                            st.stop() 
+                            num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
+                        except Exception:
+                            num_orden_interno = 0
+                            
+                        orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
+                        
+                        # Ahora sí: recuperamos el resultado exacto que ya estaba guardado previamente
+                        resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
+                        
+                        # Insertamos nuevamente con el orden visual actualizado
+                        c.execute("""
+                            INSERT INTO resultados_items (
+                                orden_id, perfil_codigo, codigo_item, sub_item, resultado, 
+                                unidad, valores_referencia, es_titulo, formula, orden_visual, 
+                                metodo, en_negrita, ub_facturacion, es_particular
+                            ) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            orden_id, 
+                            perf_id, 
+                            c_item, 
+                            s_nombre, 
+                            resultado_a_preservar, 
+                            s_uni, 
+                            s_ref, 
+                            s_tit, 
+                            s_form, 
+                            orden_visual_calculado, 
+                            s_met, 
+                            s_neg, 
+                            s_ub_fac, 
+                            val_part_int
+                        )) 
                 
                 st.toast("🎉 ¡Estructura modificada y ordenada con éxito!", icon="✅")
                 st.success("💾 ¡El orden personalizado de las determinaciones ha sido actualizado correctamente!")
