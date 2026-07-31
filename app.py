@@ -1918,9 +1918,14 @@ elif menu == "✏️ Modificar Protocolos":
                             st.stop()
                 
                 st.toast("🎉 ¡Estructura modificada y ordenada con éxito!", icon="✅")
-                st.success("💾 ¡El orden personalizado de las determinaciones ha sido actualizado correctamente!")
-                import time
-                time.sleep(1.5)
+                # Al final de tu botón o lógica de guardado:
+                st.success("¡Protocolo modificado y reordenado con éxito!")
+                
+                # Limpiamos las variables de edición para que la próxima lectura sea fresca
+                if 'perfiles_editar' in st.session_state:
+                    del st.session_state.perfiles_editar
+                
+                # Forzamos a Streamlit a recargar la página para que el Área Analítica lea de la BD actualizada
                 st.rerun()
                 
         st.markdown("---")        
