@@ -1870,64 +1870,44 @@ elif menu == "✏️ Modificar Protocolos":
         else:
             st.info("Este protocolo no tiene prácticas asignadas en este momento.")
             
-        # 4. BOTÓN DE GUARDADO FINAL Y RECALCULO DE ORDEN VISUAL (ESTABLE)
+        # 4. BOTÓN DE GUARDADO FINAL Y RECALCULO DE ORDEN VISUAL (CORREGIDO)
         if st.button("💾 Guardar Estructura y Orden de Prácticas", type="primary", use_container_width=True, key=f"btn_save_practicas_{orden_id_mod}", disabled=es_validado):
             if not st.session_state.perfiles_editar:
                 st.error("Error: El protocolo no puede quedar vacío. Asigne al menos una práctica antes de guardar.")
             else:
-                conn = conectar_db(); c = conn.cursor()
+                conn = conectar_db()
+                c = conn.cursor()
                 
-                # 1. Conservamos de forma segura ABSOLUTAMENTE TODO lo que ya esté escrito en la pantalla
-                c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
-                valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
-                
-                # 1. Borramos los ítems anteriores del protocolo para evitar conflictos
-                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
-
-                # 2. Reinyectamos las prácticas usando el índice estricto de la lista
-                for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
-                    orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
-                    sub_items = obtener_sub_items_de_practica(perf_id)
-                    val_part_int = 1 if es_particular_bool else 0
-                    
-                    for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-                        codigo_limpio = str(c_item).strip()
-                        
-                        # 0. Primero rescatamos los resultados que ya estaban cargados en pantalla para no perderlos
-                                # 0. Primero rescatamos los resultados que ya estaban cargados en pantalla para no perderlos
-                valores_cargados_previamente = {}
                 try:
-                    c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id,))
+                    # 1. Rescatamos de forma limpia los resultados que ya estaban cargados previamente
+                    valores_cargados_previamente = {}
+                    c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
                     for row in c.fetchall():
                         if row[0] is not None:
                             valores_cargados_previamente[str(row[0]).strip()] = row[1]
-                except Exception:
-                    pass
-                
-                # 1. Borramos los ítems anteriores del protocolo para limpiar y reordenar
-                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
-                
-                # 2. Reinyectamos las prácticas usando el índice estricto de la lista
-                for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
-                    orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
-                    sub_items = obtener_sub_items_de_practica(perf_id)
-                    val_part_int = 1 if es_particular_bool else 0
                     
-                    for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-                        codigo_limpio = str(c_item).strip()
+                    # 2. Borramos los ítems anteriores de ESTA orden específica
+                    c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
+                    
+                    # 3. Reinyectamos las prácticas usando el orden visual exacto de la lista actual
+                    for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
+                        orden_del_perfil = idx + 1  # Posición visual exacta (1, 2, 3...)
+                        sub_items = obtener_sub_items_de_practica(perf_id)
+                        val_part_int = 1 if es_particular_bool else 0
                         
-                        try:
-                            num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
-                        except Exception:
-                            num_orden_interno = 0
+                        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+                            codigo_limpio = str(c_item).strip()
                             
-                        orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
-                        
-                        # ASEGURAMOS QUE LA VARIABLE EXISTA SIEMPRE:
-                        resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
-                        
-                        # Insertamos nuevamente con el bloque protegido para ver si hay otro error de Postgres
-                        try:
+                            try:
+                                num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
+                            except Exception:
+                                num_orden_interno = 0
+                                
+                            orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
+                            
+                            # Recuperamos el resultado previo si existía para no borrar lo tipeado
+                            resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
+                            
                             c.execute("""
                                 INSERT INTO resultados_items (
                                     orden_id, codigo_perfil, codigo_item, sub_item, resultado, 
@@ -1936,7 +1916,7 @@ elif menu == "✏️ Modificar Protocolos":
                                 ) 
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """, (
-                                orden_id, 
+                                orden_id_mod, 
                                 perf_id, 
                                 c_item, 
                                 s_nombre, 
@@ -1951,21 +1931,23 @@ elif menu == "✏️ Modificar Protocolos":
                                 s_ub_fac, 
                                 val_part_int
                             ))
-                        except Exception as e:
-                            import streamlit as st
-                            st.error(f"🚨 ERROR EN EL INSERT: {e}")
-                            st.stop()
-                
-                st.toast("🎉 ¡Estructura modificada y ordenada con éxito!", icon="✅")
-                # Al final de tu botón o lógica de guardado:
-                st.success("¡Protocolo modificado y reordenado con éxito!")
-                
-                # Limpiamos las variables de edición para que la próxima lectura sea fresca
-                if 'perfiles_editar' in st.session_state:
-                    del st.session_state.perfiles_editar
-                
-                # Forzamos a Streamlit a recargar la página para que el Área Analítica lea de la BD actualizada
-                st.rerun()
+                            
+                    conn.commit()
+                    st.success("¡Protocolo modificado, ordenado y guardado con éxito!")
+                    
+                    # Limpiamos la caché de edición para forzar lectura fresca
+                    if 'perfiles_editar' in st.session_state:
+                        del st.session_state.perfiles_editar
+                    if 'ultimo_orden_id_mod' in st.session_state:
+                        del st.session_state.ultimo_orden_id_mod
+                        
+                    st.rerun()
+                    
+                except Exception as e:
+                    conn.rollback()
+                    st.error(f"🚨 Error al guardar en la base de datos: {e}")
+                finally:
+                    conn.close()
                 
         st.markdown("---")        
 
