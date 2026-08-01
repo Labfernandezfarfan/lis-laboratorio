@@ -2029,7 +2029,7 @@ elif menu == "🧪 Área Analítica (Carga)":
             conn_items = conectar_db()
             cur_items = conn_items.cursor()
             cur_items.execute("""
-                SELECT id, perfil_codigo, codigo_item, sub_item, unidad, valores_referencia, 
+                SELECT id, codigo_perfil, codigo_item, sub_item, unidad, valores_referencia, 
                        resultado, es_titulo, formula, metodo, en_negrita, ub_facturacion, orden_visual, es_particular
                 FROM resultados_items 
                 WHERE orden_id = %s
@@ -2040,6 +2040,7 @@ elif menu == "🧪 Área Analítica (Carga)":
         except Exception as e:
             import streamlit as st
             st.error(f"Error al cargar items: {e}")
+            items = []  # Evita que falle la variable si hay un error
         
         try:
             # Índice 12 corresponde a orden_visual en la tupla de resultados_items
