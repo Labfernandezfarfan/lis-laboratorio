@@ -2144,7 +2144,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                             "Prediseñado",
                             options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{orden_id}_{item[0]}"
+                            key=f"sel_{orden_id}_resp"
                         )
                     
                     with col_sub_manual:
