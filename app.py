@@ -1819,57 +1819,56 @@ elif menu == "✏️ Modificar Protocolos":
         st.markdown("<br>", unsafe_allow_html=True)
 
         if st.session_state.perfiles_editar:
-            col_lista_m, col_botones_m = st.columns([0.75, 0.25])
+            st.write("📋 **Estructura y Orden del Protocolo:**")
+            st.caption("Usa los botones de las flechas para reordenar cada práctica de forma inmediata.")
             
-            with col_lista_m:
-                st.write("📋 **Estructura y Orden del Protocolo:**")
-                # Mostramos cada práctica con su checkbox de "Paga Paciente (Particular)" al lado
-                nuevos_estados_particulares = []
-                for i, (p_id, p_nom, p_part) in enumerate(st.session_state.perfiles_editar):
-                    col_item_txt, col_item_chk = st.columns([0.65, 0.35])
-                    with col_item_txt:
-                        st.markdown(f"**{i+1}.** `({p_id})` — {p_nom.upper()}")
-                    with col_item_chk:
-                        chk_val = st.checkbox("💵 Paga Paciente (Particular)", value=p_part, key=f"chk_part_mod_{orden_id_mod}_{p_id}_{i}")
-                        nuevos_estados_particulares.append((p_id, p_nom, chk_val))
+            # Recorremos cada perfil de la lista para darle sus propios controles individuales
+            nueva_lista_perfiles = list(st.session_state.perfiles_editar)
+            total_items = len(nueva_lista_perfiles)
+            
+            for i, (p_id, p_nom, p_part) in enumerate(nueva_lista_perfiles):
+                # Creamos columnas horizontales para cada renglón: Texto | Particular | Subir | Bajar | Quitar
+                c_txt, c_chk, c_sub, c_baj, c_quit = st.columns([0.45, 0.25, 0.10, 0.10, 0.10])
                 
-                # Actualizamos los valores de particular en el session state si cambian
-                if nuevos_estados_particulares != st.session_state.perfiles_editar:
-                    st.session_state.perfiles_editar = nuevos_estados_particulares
-
-                # Radio invisible o selector para elegir cuál mover con los botones
-                opciones_radio_m = range(len(st.session_state.perfiles_editar))
-                perfil_index_sel_m = st.radio(
-                    "Seleccione el índice de la práctica a mover o quitar:", 
-                    options=opciones_radio_m,
-                    format_func=lambda i: f"Mover/Quitar ítem N° {i+1}: ({st.session_state.perfiles_editar[i][0]})"
-                )
-
-            with col_botones_m:
-                st.write("### Ordenar")
-                
-                if st.button("🔼 Subir", use_container_width=True, key=f"btn_subir_mod_{orden_id_mod}"):
-                    if perfil_index_sel_m > 0:
-                        idx = perfil_index_sel_m
-                        st.session_state.perfiles_editar[idx], st.session_state.perfiles_editar[idx-1] = \
-                            st.session_state.perfiles_editar[idx-1], st.session_state.perfiles_editar[idx]
+                with c_txt:
+                    st.markdown(f"**{i+1}.** `({p_id})` — {p_nom.upper()}")
+                    
+                with c_chk:
+                    # Checkbox único por cada ítem y posición
+                    nuevo_part = st.checkbox("Particular", value=p_part, key=f"chk_part_mod_{orden_id_mod}_{p_id}_{i}")
+                    # Actualizamos el estado particular si cambia
+                    if nuevo_part != p_part:
+                        nueva_lista_perfiles[i] = (p_id, p_nom, nuevo_part)
+                        st.session_state.perfiles_editar = nueva_lista_perfiles
+                        
+                with c_sub:
+                    # Botón Subir individual (solo se habilita si no es el primero)
+                    if i > 0:
+                        if st.button("⬆️", key=f"subir_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
+                            # Intercambiamos con el de arriba
+                            nueva_lista_perfiles[i], nueva_lista_perfiles[i-1] = nueva_lista_perfiles[i-1], nueva_lista_perfiles[i]
+                            st.session_state.perfiles_editar = nueva_lista_perfiles
+                            st.rerun()
+                            
+                with c_baj:
+                    # Botón Bajar individual (solo se habilita si no es el último)
+                    if i < total_items - 1:
+                        if st.button("⬇️", key=f"bajar_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
+                            # Intercambiamos con el de abajo
+                            nueva_lista_perfiles[i], nueva_lista_perfiles[i+1] = nueva_lista_perfiles[i+1], nueva_lista_perfiles[i]
+                            st.session_state.perfiles_editar = nueva_lista_perfiles
+                            st.rerun()
+                            
+                with c_quit:
+                    # Botón Quitar individual
+                    if st.button("❌", key=f"quitar_{orden_id_mod}_{p_id}_{i}", use_container_width=True, type="secondary"):
+                        nueva_lista_perfiles.pop(i)
+                        st.session_state.perfiles_editar = nueva_lista_perfiles
                         st.rerun()
                         
-                if st.button("🔽 Bajar", use_container_width=True, key=f"btn_bajar_mod_{orden_id_mod}"):
-                    if perfil_index_sel_m < len(st.session_state.perfiles_editar) - 1:
-                        idx = perfil_index_sel_m
-                        st.session_state.perfiles_editar[idx], st.session_state.perfiles_editar[idx+1] = \
-                            st.session_state.perfiles_editar[idx+1], st.session_state.perfiles_editar[idx]
-                        st.rerun()
-                        
-                st.write("---")
-                if st.button("🗑️ Quitar", use_container_width=True, key=f"btn_quitar_mod_{orden_id_mod}", type="secondary"):
-                    st.session_state.perfiles_editar.pop(perfil_index_sel_m)
-                    st.rerun()
+            st.markdown("---")
         else:
             st.info("Este protocolo no tiene prácticas asignadas en este momento.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
             
         # 4. BOTÓN DE GUARDADO FINAL Y RECALCULO DE ORDEN VISUAL (ESTABLE)
         if st.button("💾 Guardar Estructura y Orden de Prácticas", type="primary", use_container_width=True, key=f"btn_save_practicas_{orden_id_mod}", disabled=es_validado):
