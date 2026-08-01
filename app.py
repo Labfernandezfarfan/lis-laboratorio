@@ -761,15 +761,17 @@ def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, t
             UPDATE ordenes 
             SET nro_protocolo = %s, fecha = %s, medico_id = %s, obra_social_id = %s, 
                 bioquimico_firma_id = %s, tipo_paciente = %s, nro_orden_internacion = %s
-            WHERE id = ?
+            WHERE id = %s
         """, (nro_proto, fecha, medico_id, os_id, b_id, tipo_p, nro_ord_int, orden_id))
         conn.commit()
         exito = True
-    except sqlite3.IntegrityError:
+    except Exception as e:
+        print(f"Error al actualizar orden: {e}")
         exito = False
-    conn.close()
+    finally:
+        conn.close()
     return exito
-
+    
 def eliminar_item_de_orden(orden_id, codigo_item):
     """Elimina una determinación específica de un protocolo."""
     conn = conectar_db()
@@ -1746,7 +1748,7 @@ elif menu == "✏️ Modificar Protocolos":
         
         # Ocultamos o deshabilitamos el botón de guardar datos generales si está validado
         if st.button("💾 Guardar Cambios Generales", type="primary", disabled=es_validado):
-            ok = actualizar_orden_datos(orden_id_mod, proto_editado, fecha_guardar_editada, m_sel_editado, o_sel_editado, bq_sel_editado, tipo_p_editado, nro_ord_int_editado)
+            ok = actualizar_orden_datos(orden_id_mod, proto_editado, fecha_guardar_editada, m_sel_editado, o_sel_editado, bq_sel_editado, tipo_p_editado, nro_ord_int_editado, orden_id_mod )
             if ok:
                 st.success("¡Datos generales del protocolo actualizados con éxito!")
                 st.rerun()
