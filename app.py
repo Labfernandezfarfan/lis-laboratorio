@@ -2135,7 +2135,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                             "Prediseñado",
                             options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{orden_id}_{c_item}"  # <--- AQUÍ ESTÁ LA SOLUCIÓN: Clave única por orden e ítem
+                            key=f"sel_{orden_id}_{c_item}"  
                         )
                     
                     with col_sub_manual:
