@@ -1822,46 +1822,39 @@ elif menu == "✏️ Modificar Protocolos":
             st.write("📋 **Estructura y Orden del Protocolo:**")
             st.caption("Usa los botones de las flechas para reordenar cada práctica de forma inmediata.")
             
-            # Recorremos cada perfil de la lista para darle sus propios controles individuales
             nueva_lista_perfiles = list(st.session_state.perfiles_editar)
             total_items = len(nueva_lista_perfiles)
             
             for i, (p_id, p_nom, p_part) in enumerate(nueva_lista_perfiles):
-                # Creamos columnas horizontales para cada renglón: Texto | Particular | Subir | Bajar | Quitar
+                # Usamos un key único combinando el ID de la orden, el ID del perfil y el índice exacto
                 c_txt, c_chk, c_sub, c_baj, c_quit = st.columns([0.45, 0.25, 0.10, 0.10, 0.10])
                 
                 with c_txt:
                     st.markdown(f"**{i+1}.** `({p_id})` — {p_nom.upper()}")
                     
                 with c_chk:
-                    # Checkbox único por cada ítem y posición
-                    nuevo_part = st.checkbox("Particular", value=p_part, key=f"chk_part_mod_{orden_id_mod}_{p_id}_{i}")
-                    # Actualizamos el estado particular si cambia
+                    # Key único y seguro
+                    nuevo_part = st.checkbox("Particular", value=p_part, key=f"chk_p_{orden_id_mod}_{p_id}_{i}")
                     if nuevo_part != p_part:
                         nueva_lista_perfiles[i] = (p_id, p_nom, nuevo_part)
                         st.session_state.perfiles_editar = nueva_lista_perfiles
                         
                 with c_sub:
-                    # Botón Subir individual (solo se habilita si no es el primero)
                     if i > 0:
-                        if st.button("⬆️", key=f"subir_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
-                            # Intercambiamos con el de arriba
+                        if st.button("⬆️", key=f"sub_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
                             nueva_lista_perfiles[i], nueva_lista_perfiles[i-1] = nueva_lista_perfiles[i-1], nueva_lista_perfiles[i]
                             st.session_state.perfiles_editar = nueva_lista_perfiles
                             st.rerun()
                             
                 with c_baj:
-                    # Botón Bajar individual (solo se habilita si no es el último)
                     if i < total_items - 1:
-                        if st.button("⬇️", key=f"bajar_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
-                            # Intercambiamos con el de abajo
+                        if st.button("⬇️", key=f"baj_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
                             nueva_lista_perfiles[i], nueva_lista_perfiles[i+1] = nueva_lista_perfiles[i+1], nueva_lista_perfiles[i]
                             st.session_state.perfiles_editar = nueva_lista_perfiles
                             st.rerun()
                             
                 with c_quit:
-                    # Botón Quitar individual
-                    if st.button("❌", key=f"quitar_{orden_id_mod}_{p_id}_{i}", use_container_width=True, type="secondary"):
+                    if st.button("❌", key=f"quit_{orden_id_mod}_{p_id}_{i}", use_container_width=True, type="secondary"):
                         nueva_lista_perfiles.pop(i)
                         st.session_state.perfiles_editar = nueva_lista_perfiles
                         st.rerun()
@@ -2139,12 +2132,10 @@ elif menu == "🧪 Área Analítica (Carga)":
                         
                     with col_sub_combo:
                         seleccion_resp = st.selectbox(
-                            "Prediseñado", 
-                            options=opciones_combo, 
+                            "Prediseñado",
+                            options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{r_id}", 
-                            disabled=es_validado_aa,
-                            label_visibility="collapsed"
+                            key=f"sel_{orden_id}_{c_item}"  # <--- AQUÍ ESTÁ LA SOLUCIÓN: Clave única por orden e ítem
                         )
                     
                     with col_sub_manual:
