@@ -2032,13 +2032,14 @@ elif menu == "🧪 Área Analítica (Carga)":
                 SELECT id, perfil_codigo, codigo_item, sub_item, unidad, valores_referencia, 
                        resultado, es_titulo, formula, metodo, en_negrita, ub_facturacion, orden_visual, es_particular
                 FROM resultados_items 
-                WHERE orden_id = ?
+                WHERE orden_id = %s
                 ORDER BY orden_visual ASC
             """, (orden_id,))
             items = cur_items.fetchall()
             conn_items.close()
-        except Exception:
-            items = obtener_items_para_cargar(orden_id)
+        except Exception as e:
+            import streamlit as st
+            st.error(f"Error al cargar items: {e}")
         
         try:
             # Índice 12 corresponde a orden_visual en la tupla de resultados_items
