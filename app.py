@@ -1891,20 +1891,26 @@ elif menu == "✏️ Modificar Protocolos":
                     
                     # 3. RECORRIDO ESTRICTO: Usamos el orden exacto de st.session_state.perfiles_editar
                     for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
-                        orden_del_perfil = idx + 1  # 1, 2, 3... según cómo los subiste o bajaste
+                        orden_del_perfil = idx + 1  # 1, 2, 3... según cómo los subiste o bajaste con las flechitas
                         sub_items = obtener_sub_items_de_practica(perf_id)
                         val_part_int = 1 if es_particular_bool else 0
                         
-                        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+                        # ORDENAMOS EXPLÍCITAMENTE LOS SUB-ÍTEMS por su número de orden interno (s_ord) 
+                        # para que no se desarmen al guardarse en la base de datos
+                        try:
+                            sub_items_ordenados = sorted(
+                                sub_items, 
+                                key=lambda x: int(x[7]) if x[7] is not None and str(x[7]).strip() != "" else 0
+                            )
+                        except Exception:
+                            sub_items_ordenados = sub_items
+
+                        for sub_idx, (_, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac) in enumerate(sub_items_ordenados):
                             codigo_limpio = str(c_item).strip()
                             
-                            try:
-                                num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
-                            except Exception:
-                                num_orden_interno = 0
-                                
-                            # Multiplicador que fija la jerarquía visual del perfil + el orden interno del subitem
-                            orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
+                            # Asignamos un orden visual estrictamente secuencial basado en la posición 
+                            # de la práctica en la lista y la posición interna del sub-ítem
+                            orden_visual_calculado = (orden_del_perfil * 10000) + sub_idx + 1
                             
                             resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
                             
