@@ -917,21 +917,18 @@ def obtener_items_para_cargar(orden_id):
             ri.valores_referencia, 
             ri.resultado, 
             ri.es_titulo, 
-            COALESCE(d.formula_calculo, ri.formula) AS formula, -- 👈 Si no hay en d, usa ri
+            COALESCE(d.formula_calculo, ri.formula) AS formula,
             ri.metodo, 
             ri.en_negrita, 
             ri.ub_facturacion, 
             ri.orden_visual,
-            COALESCE(ri.es_particular, 0) AS es_particular -- 👈 Agregado clave (posición 13 / índice 13 o -1)
+            COALESCE(ri.es_particular, 0) AS es_particular
         FROM resultados_items ri
         LEFT JOIN determinaciones d ON ri.codigo_item = d.codigo_item
         WHERE ri.orden_id = %s 
-        ORDER BY ri.codigo_perfil ASC, CAST(ri.orden_visual AS INTEGER) ASC, ri.id ASC
+        ORDER BY CAST(ri.orden_visual AS INTEGER) ASC, ri.id ASC
     """, (orden_id,))
     res = c.fetchall(); conn.close(); return res
-
-# Comenta o borra esta línea donde inicia tu app:
-# crear_tablas()
 
 # --- MENÚ DEL SISTEMA (UNIFICADO) ---
 # --- MENÚ DEL SISTEMA (UNIFICADO) ---
