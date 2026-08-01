@@ -1870,7 +1870,7 @@ elif menu == "✏️ Modificar Protocolos":
         else:
             st.info("Este protocolo no tiene prácticas asignadas en este momento.")
             
-        # 4. BOTÓN DE GUARDADO FINAL Y RECALCULO DE ORDEN VISUAL (CORREGIDO)
+        # 4. BOTÓN DE GUARDADO FINAL Y RECALCULO DE ORDEN VISUAL
         if st.button("💾 Guardar Estructura y Orden de Prácticas", type="primary", use_container_width=True, key=f"btn_save_practicas_{orden_id_mod}", disabled=es_validado):
             if not st.session_state.perfiles_editar:
                 st.error("Error: El protocolo no puede quedar vacío. Asigne al menos una práctica antes de guardar.")
@@ -1879,7 +1879,7 @@ elif menu == "✏️ Modificar Protocolos":
                 c = conn.cursor()
                 
                 try:
-                    # 1. Rescatamos de forma limpia los resultados que ya estaban cargados previamente
+                    # 1. Rescatamos los resultados que ya estaban cargados previamente para no perderlos
                     valores_cargados_previamente = {}
                     c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
                     for row in c.fetchall():
@@ -1889,9 +1889,9 @@ elif menu == "✏️ Modificar Protocolos":
                     # 2. Borramos los ítems anteriores de ESTA orden específica
                     c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
                     
-                    # 3. Reinyectamos las prácticas usando el orden visual exacto de la lista actual
+                    # 3. RECORRIDO ESTRICTO: Usamos el orden exacto de st.session_state.perfiles_editar
                     for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
-                        orden_del_perfil = idx + 1  # Posición visual exacta (1, 2, 3...)
+                        orden_del_perfil = idx + 1  # 1, 2, 3... según cómo los subiste o bajaste
                         sub_items = obtener_sub_items_de_practica(perf_id)
                         val_part_int = 1 if es_particular_bool else 0
                         
@@ -1903,9 +1903,9 @@ elif menu == "✏️ Modificar Protocolos":
                             except Exception:
                                 num_orden_interno = 0
                                 
+                            # Multiplicador que fija la jerarquía visual del perfil + el orden interno del subitem
                             orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
                             
-                            # Recuperamos el resultado previo si existía para no borrar lo tipeado
                             resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
                             
                             c.execute("""
@@ -1932,14 +1932,13 @@ elif menu == "✏️ Modificar Protocolos":
                                 val_part_int
                             ))
                             
+                    # 4. FUERA de los bucles: Guardamos los cambios definitivamente en la BD
                     conn.commit()
-                    st.success("¡Protocolo modificado, ordenado y guardado con éxito!")
+                    st.success("¡Estructura y orden guardados correctamente!")
                     
-                    # Limpiamos la caché de edición para forzar lectura fresca
+                    # Limpiamos la caché de edición para refrescar
                     if 'perfiles_editar' in st.session_state:
                         del st.session_state.perfiles_editar
-                    if 'ultimo_orden_id_mod' in st.session_state:
-                        del st.session_state.ultimo_orden_id_mod
                         
                     st.rerun()
                     
