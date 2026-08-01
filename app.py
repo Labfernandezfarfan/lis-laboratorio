@@ -2144,7 +2144,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                             "Prediseñado",
                             options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{orden_id_mod}_{c_item if 'c_item' in locals() else 'item'}"
+                            key=f"sel_{orden_id}_{c_item if 'c_item' in locals() else 'item'}"
                         )
                     
                     with col_sub_manual:
