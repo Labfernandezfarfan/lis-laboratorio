@@ -2150,10 +2150,9 @@ elif menu == "🧪 Área Analítica (Carga)":
                         if seleccion_resp == "-- Manual --":
                             val_actual_str = str(resultado) if resultado is not None else ""
                             val_input = st.text_input(
-                                "Resultado", 
-                                value=val_actual_str, 
-                                key=f"raw_{r_id}", 
-                                disabled=es_validado_aa,
+                                "Resultado",
+                                value=str(resultado if resultado is not None else ""),
+                                key=f"val_{orden_id}_{r_id}_{idx}",  # 👈 Clave única asegurada para el cuadro de texto
                                 label_visibility="collapsed"
                             )
                             valores_temporales[r_id] = val_input
