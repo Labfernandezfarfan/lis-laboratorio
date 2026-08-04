@@ -2110,9 +2110,8 @@ elif menu == "🧪 Área Analítica (Carga)":
 
                 return historial
 
-            # Bucle principal que dibuja cada ítem en pantalla de forma ordenada
-            for r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part in items:
-
+                        # Cambiá tu bucle actual por este con enumerate(items):
+            for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
                 if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
                     st.markdown(f"### 📊 {sub_item.upper()}")
                     st.markdown("---")
@@ -2144,7 +2143,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                             "Prediseñado",
                             options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{orden_id}_resp_{r_id}"
+                            key=f"sel_{orden_id}_resp_{r_id}_{idx}"  # 👈 Clave 100% única garantizada
                         )
                     
                     with col_sub_manual:
