@@ -819,34 +819,43 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     else:
         fecha_actual = datetime.now().strftime("%d/%m/%Y")
         
-    try:
-        nro_proto = int(proto_manual) if proto_manual is not None else 1001
-    except (ValueError, TypeError):
-        nro_proto = 1001
+    # Generamos un número de protocolo basado en marca de tiempo única para evitar cualquier duplicado con datos viejos
+    nro_proto = int(datetime.now().strftime("%m%d%H%M%S")) % 1000000
+    if nro_proto < 1000:
+        nro_proto += 1000
         
     try:
+        # Intentamos insertar dejando que la base de datos maneje el ID principal y asignando el nro_proto único
         c.execute("""
             INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
             VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
         """, (nro_proto, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
-        orden_id = c.lastrowid
+        
+        # Obtenemos el ID de forma segura según el motor de base de datos
+        try:
+            orden_id = c.lastrowid
+        except Exception:
+            c.execute("SELECT MAX(id) FROM ordenes")
+            res_id = c.fetchone()
+            orden_id = res_id[0] if res_id and res_id[0] is not None else 1
+            
     except Exception as e:
         conn.rollback()
         conn.close()
-        try:
-            conn = conectar_db()
-            c = conn.cursor()
-            nro_proto_emergencia = int(datetime.now().timestamp() % 100000)
+        print(f"Error detallado al registrar orden: {e}")
+        return None
+        
+    for cod_p in lista_perfiles:
+        sub_items = obtener_sub_items_de_practica(cod_p)
+        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
             c.execute("""
-                INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
-                VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
-            """, (nro_proto_emergencia, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
-            orden_id = c.lastrowid
-        except Exception as ex:
-            conn.rollback()
-            conn.close()
-            print(f"Error crítico en registro: {ex}")
-            return None
+                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
+            
+    conn.commit()
+    conn.close()
+    return orden_id
         
     for cod_p in lista_perfiles:
         sub_items = obtener_sub_items_de_practica(cod_p)
