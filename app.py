@@ -1556,8 +1556,8 @@ elif menu == "🛒 Carga de Protocolos":
                             st.rerun()
 
                 st.markdown("---")
-             # ===================================================
-            # BOTÓN DE GUARDADO CORREGIDO Y LIBRE
+            # ===================================================
+            # BOTÓN DE GUARDADO CORREGIDO CON SINTAXIS POSTGRESQL (%s)
             # ===================================================
             if st.button("🚀 Crear Protocolo Médico", type="primary", use_container_width=True):
                 if not st.session_state.perfiles_seleccionados:
@@ -1577,12 +1577,12 @@ elif menu == "🛒 Carga de Protocolos":
                             sub_items = obtener_sub_items_de_practica(cod_p)
                             datos_perfiles.append((cod_p, p_particular, sub_items))
 
-                        # 3. Abrimos conexión para actualizar los items
+                        # 3. Abrimos conexión para actualizar los items con sintaxis correcta (%s)
                         conn = conectar_db()
                         c = conn.cursor()
                         
                         try:
-                            c.execute("ALTER TABLE resultados_items ADD COLUMN es_particular INTEGER DEFAULT 0")
+                            c.execute("ALTER TABLE resultados_items ADD COLUMN IF NOT EXISTS es_particular INTEGER DEFAULT 0")
                         except Exception:
                             pass 
                         
@@ -1600,10 +1600,11 @@ elif menu == "🛒 Carga de Protocolos":
                                 
                                 orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
                                 
+                                # CORREGIDO: Se reemplazaron los '?' por '%s' compatibles con PostgreSQL
                                 c.execute("""
                                     UPDATE resultados_items 
-                                    SET orden_visual = ?, es_particular = ? 
-                                    WHERE orden_id = ? AND codigo_perfil = ? AND codigo_item = ?
+                                    SET orden_visual = %s, es_particular = %s 
+                                    WHERE orden_id = %s AND codigo_perfil = %s AND codigo_item = %s
                                 """, (orden_visual_calculado, p_particular, orden_id, cod_p, c_item))
                         
                         conn.commit()
