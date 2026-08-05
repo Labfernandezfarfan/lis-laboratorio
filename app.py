@@ -819,19 +819,28 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     else:
         fecha_actual = datetime.now().strftime("%d/%m/%Y")
         
-    # Lógica limpia y segura para el número de protocolo
+    # Definición inteligente y segura del número de protocolo
     if proto_manual is not None and str(proto_manual).strip() != "" and int(proto_manual) > 1:
         nro_proto = int(proto_manual)
     else:
-        c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
-        res_max = c.fetchone()
-        max_proto = res_max[0] if res_max and res_max[0] is not None else 1000
         try:
+            # Buscamos el número de protocolo más alto existente
+            c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
+            res_max = c.fetchone()
+            max_proto = res_max[0] if res_max and res_max[0] is not None else 0
+            
             max_proto_int = int(max_proto)
-        except (ValueError, TypeError):
-            max_proto_int = 1000
-        nro_proto = max_proto_int + 1
-        
+            
+            # Si el máximo es menor a 2000 (lo que indica que quedaron números viejos o el 1), 
+            # saltamos de forma segura a 2001 para evitar cualquier duplicado con datos antiguos.
+            if max_proto_int < 2000:
+                nro_proto = 2001
+            else:
+                nro_proto = max_proto_int + 1
+        except Exception:
+            # Plan de emergencia absoluto si falla la consulta
+            nro_proto = 2000 + int(datetime.now().timestamp() % 10000)
+
     try:
         c.execute("""
             INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
@@ -843,6 +852,16 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
         conn.close()
         print(f"Error al registrar orden: {e}")
         return None
+        
+    for cod_p in lista_perfiles:
+        sub_items = obtener_sub_items_de_practica(cod_p)
+        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+            c.execute("""
+                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
+            
+    conn.commit(); conn.close(); return orden_id
         
     for cod_p in lista_perfiles:
         sub_items = obtener_sub_items_de_practica(cod_p)
