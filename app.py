@@ -819,28 +819,21 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     else:
         fecha_actual = datetime.now().strftime("%d/%m/%Y")
         
-    # Definición inteligente y segura del número de protocolo
-    if proto_manual is not None and str(proto_manual).strip() != "" and int(proto_manual) > 1:
-        nro_proto = int(proto_manual)
+    def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, nro_ord_int, lista_perfiles, fecha_manual=None):
+    conn = conectar_db(); c = conn.cursor()
+    
+    # Si viene una fecha manual la usa, de lo contrario cae en la de hoy por defecto
+    if fecha_manual:
+        fecha_actual = fecha_manual
     else:
-        try:
-            # Buscamos el número de protocolo más alto existente
-            c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
-            res_max = c.fetchone()
-            max_proto = res_max[0] if res_max and res_max[0] is not None else 0
-            
-            max_proto_int = int(max_proto)
-            
-            # Si el máximo es menor a 2000 (lo que indica que quedaron números viejos o el 1), 
-            # saltamos de forma segura a 2001 para evitar cualquier duplicado con datos antiguos.
-            if max_proto_int < 2000:
-                nro_proto = 2001
-            else:
-                nro_proto = max_proto_int + 1
-        except Exception:
-            # Plan de emergencia absoluto si falla la consulta
-            nro_proto = 2000 + int(datetime.now().timestamp() % 10000)
-
+        fecha_actual = datetime.now().strftime("%d/%m/%Y")
+        
+    # Toma directamente el número manual ingresado en la pantalla
+    try:
+        nro_proto = int(proto_manual) if proto_manual is not None else 1001
+    except (ValueError, TypeError):
+        nro_proto = 1001
+        
     try:
         c.execute("""
             INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
@@ -850,8 +843,30 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     except Exception as e:
         conn.rollback()
         conn.close()
-        print(f"Error al registrar orden: {e}")
-        return None
+        # Si la base de datos se pone estricta con el UNIQUE, intentamos forzar un número único basado en el tiempo actual para que nunca falle
+        try:
+            conn = conectar_db(); c = conn.cursor()
+            nro_proto_emergencia = int(datetime.now().timestamp() % 100000)
+            c.execute("""
+                INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
+                VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
+            """, (nro_proto_emergencia, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
+            orden_id = c.lastrowid
+        except Exception as ex:
+            conn.rollback()
+            conn.close()
+            print(f"Error crítico en registro: {ex}")
+            return None
+        
+    for cod_p in lista_perfiles:
+        sub_items = obtener_sub_items_de_practica(cod_p)
+        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+            c.execute("""
+                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
+            
+    conn.commit(); conn.close(); return orden_id
         
     for cod_p in lista_perfiles:
         sub_items = obtener_sub_items_de_practica(cod_p)
