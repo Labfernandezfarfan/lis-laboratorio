@@ -822,17 +822,20 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     if proto_manual:
         nro_proto = proto_manual
     else:
-        # Buscamos el máximo de forma segura ignorando nulos y asegurando enteros
-        c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
-        res_max = c.fetchone()
-        max_proto = res_max[0] if res_max and res_max[0] is not None else 1000
+        # En lugar de MAX(nro_protocolo) que puede chocar, contamos cuántas órdenes hay y sumamos de forma segura
+        c.execute("SELECT COUNT(*) FROM ordenes")
+        total_ordenes = c.fetchone()[0]
         
-        try:
-            max_proto_int = int(max_proto)
-        except (ValueError, TypeError):
-            max_proto_int = 1000
-            
-        nro_proto = max_proto_int + 1
+        # Partimos de 1001 y le sumamos la cantidad de órdenes existentes + 1 para que nunca se repita
+        nro_proto = 1001 + total_ordenes
+        
+        # Bucle de seguridad por si el número justo ya existe en la base de datos
+        while True:
+            c.execute("SELECT id FROM ordenes WHERE nro_protocolo = %s", (nro_proto,))
+            if c.fetchone():
+                nro_proto += 1
+            else:
+                break
         
     try:
         c.execute("""
