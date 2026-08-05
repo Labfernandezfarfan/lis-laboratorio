@@ -823,7 +823,14 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     else:
         c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
         max_proto = c.fetchone()[0]
-        nro_proto = 1001 if not max_proto else max_proto + 1
+        
+        # 🛡️ Blindaje para asegurar que sea un entero válido
+        try:
+            max_proto_int = int(max_proto) if max_proto is not None and str(max_proto).strip() != "" else 0
+        except (ValueError, TypeError):
+            max_proto_int = 0
+            
+        nro_proto = 1001 if max_proto_int == 0 else max_proto_int + 1
         
     try:
         c.execute("""
