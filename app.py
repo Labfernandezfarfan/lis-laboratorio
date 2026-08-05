@@ -819,14 +819,18 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     else:
         fecha_actual = datetime.now().strftime("%d/%m/%Y")
         
-    # Si ingresaste un número manual lo respeta directo; si no, calcula por cantidad de órdenes
-    if proto_manual:
-        nro_proto = proto_manual
+    # Lógica limpia y segura para el número de protocolo
+    if proto_manual is not None and str(proto_manual).strip() != "" and int(proto_manual) > 1:
+        nro_proto = int(proto_manual)
     else:
-        c.execute("SELECT COUNT(*) FROM ordenes")
-        res_total = c.fetchone()
-        total_ordenes = res_total[0] if res_total and res_total[0] is not None else 0
-        nro_proto = 1001 + total_ordenes
+        c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
+        res_max = c.fetchone()
+        max_proto = res_max[0] if res_max and res_max[0] is not None else 1000
+        try:
+            max_proto_int = int(max_proto)
+        except (ValueError, TypeError):
+            max_proto_int = 1000
+        nro_proto = max_proto_int + 1
         
     try:
         c.execute("""
@@ -834,8 +838,11 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
             VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
         """, (nro_proto, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
         orden_id = c.lastrowid
-    except sqlite3.IntegrityError:
-        conn.close(); return None
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        print(f"Error al registrar orden: {e}")
+        return None
         
     for cod_p in lista_perfiles:
         sub_items = obtener_sub_items_de_practica(cod_p)
