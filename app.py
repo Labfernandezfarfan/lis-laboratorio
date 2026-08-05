@@ -1546,8 +1546,8 @@ elif menu == "🛒 Carga de Protocolos":
                             st.rerun()
 
                 st.markdown("---")
-            # ===================================================
-            # BOTÓN DE GUARDADO CORREGIDO
+             # ===================================================
+            # BOTÓN DE GUARDADO CORREGIDO Y LIBRE
             # ===================================================
             if st.button("🚀 Crear Protocolo Médico", type="primary", use_container_width=True):
                 if not st.session_state.perfiles_seleccionados:
@@ -1559,15 +1559,15 @@ elif menu == "🛒 Carga de Protocolos":
                     orden_id = registrar_orden(proto_man, p_sel, m_sel, o_sel, bq_sel, tipo_p_sel, nro_ord_int, lista_ids_ordenados, fecha_para_guardar)
                     
                     if orden_id:
-                        # 1. Obtenemos primero los datos de los perfiles antes de tocar la BD
+                        # 2. Obtenemos datos de los perfiles
                         datos_perfiles = []
                         for item in st.session_state.perfiles_seleccionados:
                             cod_p = item['perfil'][0]
                             p_particular = 1 if item['es_particular'] else 0
-                            sub_items = obtener_sub_items_de_practica(cod_p) # Esta función suele cerrar conn
+                            sub_items = obtener_sub_items_de_practica(cod_p)
                             datos_perfiles.append((cod_p, p_particular, sub_items))
 
-                        # 2. Abrimos UNA SOLA CONEXIÓN LIMPIA para todas las actualizaciones y lecturas
+                        # 3. Abrimos conexión para actualizar los items
                         conn = conectar_db()
                         c = conn.cursor()
                         
@@ -1576,9 +1576,7 @@ elif menu == "🛒 Carga de Protocolos":
                         except Exception:
                             pass 
                         
-                        # 3. Actualizamos orden_visual y es_particular usando el índice exacto de la lista
                         for idx, (cod_p, p_particular, sub_items) in enumerate(datos_perfiles):
-                            # (idx + 1) respeta estrictamente el orden visual de los botones de subir/bajar
                             orden_del_perfil = idx + 1
                             
                             for sub in sub_items:
@@ -1590,7 +1588,6 @@ elif menu == "🛒 Carga de Protocolos":
                                 except Exception:
                                     num_orden_interno = 0
                                 
-                                # Multiplicador 1000 para evitar solapamientos entre perfiles largos
                                 orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
                                 
                                 c.execute("""
@@ -1599,63 +1596,19 @@ elif menu == "🛒 Carga de Protocolos":
                                     WHERE orden_id = ? AND codigo_perfil = ? AND codigo_item = ?
                                 """, (orden_visual_calculado, p_particular, orden_id, cod_p, c_item))
                         
-                        # 3. Actualizamos orden_visual y es_particular
-                        for cod_p, p_particular, sub_items in datos_perfiles:
-                            for sub in sub_items:
-                                c_item = sub[1]
-                                s_ord = sub[8] if len(sub) > 8 else 0
-                                
-                                try:
-                                    num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
-                                except Exception:
-                                    num_orden_interno = 0
-                                
-                                orden_visual_calculado = (orden_del_perfil * 100) + num_orden_interno
-                                
-                                c.execute("""
-                                    UPDATE resultados_items 
-                                    SET orden_visual = ?, es_particular = ? 
-                                    WHERE orden_id = ? AND codigo_perfil = ? AND codigo_item = ?
-                                """, (orden_visual_calculado, p_particular, orden_id, cod_p, c_item))
-                                
-                            orden_del_perfil += 1
-                        
-                        # 4. Guardamos los cambios
                         conn.commit()
+                        conn.close()
 
-                        # 5. Consultamos el número real de protocolo antes de cerrar la BD
-                        num_protocolo_real = orden_id
-                        try:
-                            c.execute("SELECT nro_protocolo FROM ordenes WHERE id = ?", (orden_id,))
-                            fila_proto = c.fetchone()
-                            if fila_proto and fila_proto[0]:
-                                num_protocolo_real = fila_proto[0]
-                        except Exception as e:
-                            print(f"Nota consulta protocolo: {e}")
-                            num_protocolo_real = orden_id
-
-                        # 1. Abrimos conexión y cursor de forma segura para obtener el ID real
-                        conn_temp = conectar_db()
-                        cur_temp = conn_temp.cursor()
-                        
-                        # 2. Obtenemos el ID máximo (la última orden recién creada)
-                        cur_temp.execute("SELECT MAX(id) FROM ordenes")
-                        fila_proto = cur_temp.fetchone()
-                        num_protocolo_real = fila_proto[0] if fila_proto and fila_proto[0] is not None else orden_id
-
-                        # 3. Cerramos la conexión temporal correctamente
-                        conn_temp.close()
-                        
-                        # 4. Limpiamos estados y mostramos el mensaje de éxito con el número exacto
+                        # 4. Limpiamos estados y mostramos éxito
                         st.session_state.perfiles_seleccionados = []
                         st.toast("🎉 ¡Protocolo creado con éxito!", icon="✅")
-                        st.success(f"💾 ¡El Protocolo N° **{num_protocolo_real}** se ha guardado correctamente!")
+                        st.success("💾 ¡El Protocolo se ha guardado correctamente en el sistema!")
                         
                         import time
                         time.sleep(1.5)
                         st.rerun()
                     else:
-                        st.error("⚠️ Error crítico: El número de protocolo ingresado ya existe en el sistema. Verifique e intente con otro.")
+                        st.error("⚠️ Error al registrar la orden en la base de datos. Verifique la conexión e intente nuevamente.")
 
                         
 elif menu == "✏️ Modificar Protocolos":
