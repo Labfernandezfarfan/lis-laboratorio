@@ -822,41 +822,41 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, nro_ord_int, lista_perfiles, fecha_manual=None):
     conn = conectar_db(); c = conn.cursor()
     
-    # Si viene una fecha manual la usa, de lo contrario cae en la de hoy por defecto
-    if fecha_manual:
-        fecha_actual = fecha_manual
-    else:
-        fecha_actual = datetime.now().strftime("%d/%m/%Y")
-        
-    # Toma directamente el número manual ingresado en la pantalla
-    try:
-        nro_proto = int(proto_manual) if proto_manual is not None else 1001
-    except (ValueError, TypeError):
-        nro_proto = 1001
-        
-    try:
-        c.execute("""
-            INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
-            VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
-        """, (nro_proto, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
-        orden_id = c.lastrowid
-    except Exception as e:
-        conn.rollback()
-        conn.close()
-        # Si la base de datos se pone estricta con el UNIQUE, intentamos forzar un número único basado en el tiempo actual para que nunca falle
+        # Si viene una fecha manual la usa, de lo contrario cae en la de hoy por defecto
+        if fecha_manual:
+            fecha_actual = fecha_manual
+        else:
+            fecha_actual = datetime.now().strftime("%d/%m/%Y")
+            
+        # Toma directamente el número manual ingresado en la pantalla
         try:
-            conn = conectar_db(); c = conn.cursor()
-            nro_proto_emergencia = int(datetime.now().timestamp() % 100000)
+            nro_proto = int(proto_manual) if proto_manual is not None else 1001
+        except (ValueError, TypeError):
+            nro_proto = 1001
+            
+        try:
             c.execute("""
                 INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
                 VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
-            """, (nro_proto_emergencia, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
+            """, (nro_proto, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
             orden_id = c.lastrowid
-        except Exception as ex:
+        except Exception as e:
             conn.rollback()
             conn.close()
-            print(f"Error crítico en registro: {ex}")
-            return None
+            # Si la base de datos se pone estricta con el UNIQUE, intentamos forzar un número único basado en el tiempo actual para que nunca falle
+            try:
+                conn = conectar_db(); c = conn.cursor()
+                nro_proto_emergencia = int(datetime.now().timestamp() % 100000)
+                c.execute("""
+                    INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
+                    VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
+                """, (nro_proto_emergencia, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
+                orden_id = c.lastrowid
+            except Exception as ex:
+                conn.rollback()
+                conn.close()
+                print(f"Error crítico en registro: {ex}")
+                return None
         
     for cod_p in lista_perfiles:
         sub_items = obtener_sub_items_de_practica(cod_p)
