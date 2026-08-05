@@ -1453,66 +1453,54 @@ elif menu == "🛒 Carga de Protocolos":
             st.markdown("---")
 
             # ===================================================
-            # INTERFAZ CON REORDENAMIENTO Y TILDE PARTICULAR
+            # INTERFAZ CON REORDENAMIENTO Y TILDE PARTICULAR (ESTILO MODIFICAR)
             # ===================================================
             if st.session_state.perfiles_seleccionados:
-                col_lista, col_botones = st.columns([0.75, 0.25])
+                st.write("📋 **Perfiles incluidos en la orden actual:**")
                 
-                with col_lista:
-                    st.write("📋 **Perfiles incluidos en la orden actual:**")
+                # Recorremos cada perfil creando una fila horizontal con sus controles de orden y borrado
+                for idx, item in enumerate(st.session_state.perfiles_seleccionados):
+                    c_codigo = item['perfil'][0]
+                    c_nombre = item['perfil'][1]
                     
-                    # Recorremos los perfiles agregados para dibujarlos con su checkbox individual
-                    for idx, item in enumerate(st.session_state.perfiles_seleccionados):
-                        c_codigo = item['perfil'][0]
-                        c_nombre = item['perfil'][1]
+                    # Estructura de columnas idéntica a Modificar Protocolos
+                    col_num, col_nombre, col_chk, col_subir, col_bajar, col_borrar = st.columns([0.5, 3.5, 2.0, 1.0, 1.0, 1.0])
+                    
+                    with col_num:
+                        st.markdown(f"**{idx + 1}.**")
                         
-                        col_txt, col_chk = st.columns([0.65, 0.35])
-                        with col_txt:
-                            st.markdown(f"**{idx + 1}. ({c_codigo}) — {c_nombre}**")
-                        with col_chk:
-                            # 🟡 CHECKBOX CLAVE: Tilde para marcar como Particular / Cobro Paciente
-                            item['es_particular'] = st.checkbox(
-                                "💵 Paga Paciente (Particular)", 
-                                value=item['es_particular'], 
-                                key=f"particular_chk_{c_codigo}_{idx}"
-                            )
-                        st.markdown("<hr style='margin: 3px 0;'>", unsafe_allow_html=True)
-
-                    opciones_radio = range(len(st.session_state.perfiles_seleccionados))
-                    perfil_index_sel = st.radio(
-                        "Seleccione un perfil si desea moverlo de lugar o quitarlo:", 
-                        options=opciones_radio,
-                        format_func=lambda i: f"({st.session_state.perfiles_seleccionados[i]['perfil'][0]}) — {st.session_state.perfiles_seleccionados[i]['perfil'][1]}"
-                    )
-
-                with col_botones:
-                    st.write("### Ordenar")
-                    
-                    # ⬆️ BOTÓN SUBIR PERFIL
-                    if st.button("🔼 Subir", use_container_width=True, key="btn_subir_perfil"):
-                        if perfil_index_sel > 0:
-                            idx = perfil_index_sel
-                            st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx-1] = \
-                                st.session_state.perfiles_seleccionados[idx-1], st.session_state.perfiles_seleccionados[idx]
+                    with col_nombre:
+                        st.markdown(f"**({c_codigo}) — {c_nombre}**")
+                        
+                    with col_chk:
+                        # 💵 Tilde para marcar como Particular / Cobro Paciente
+                        item['es_particular'] = st.checkbox(
+                            "Particular", 
+                            value=item['es_particular'], 
+                            key=f"particular_chk_{c_codigo}_{idx}"
+                        )
+                        
+                    with col_subir:
+                        if idx > 0:
+                            if st.button("⬆️", key=f"subir_{c_codigo}_{idx}", use_container_width=True):
+                                st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx-1] = \
+                                    st.session_state.perfiles_seleccionados[idx-1], st.session_state.perfiles_seleccionados[idx]
+                                st.rerun()
+                                
+                    with col_bajar:
+                        if idx < len(st.session_state.perfiles_seleccionados) - 1:
+                            if st.button("⬇️", key=f"bajar_{c_codigo}_{idx}", use_container_width=True):
+                                st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx+1] = \
+                                    st.session_state.perfiles_seleccionados[idx+1], st.session_state.perfiles_seleccionados[idx]
+                                st.rerun()
+                                
+                    with col_borrar:
+                        if st.button("❌", key=f"quitar_{c_codigo}_{idx}", use_container_width=True):
+                            st.session_state.perfiles_seleccionados.pop(idx)
                             st.rerun()
-                            
-                    # ⬇️ BOTÓN BAJAR PERFIL
-                    if st.button("🔽 Bajar", use_container_width=True, key="btn_bajar_perfil"):
-                        if perfil_index_sel < len(st.session_state.perfiles_seleccionados) - 1:
-                            idx = perfil_index_sel
-                            st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx+1] = \
-                                st.session_state.perfiles_seleccionados[idx+1], st.session_state.perfiles_seleccionados[idx]
-                            st.rerun()
-                            
-                    st.write("---")
-                    # ❌ BOTÓN QUITAR PERFIL
-                    if st.button("🗑️ Quitar Práctica", use_container_width=True, key="btn_quitar_perfil", type="secondary"):
-                        st.session_state.perfiles_seleccionados.pop(perfil_index_sel)
-                        st.rerun()
 
-            st.markdown("---")
-
-                        # ===================================================
+                st.markdown("---")
+            # ===================================================
             # BOTÓN DE GUARDADO CORREGIDO
             # ===================================================
             if st.button("🚀 Crear Protocolo Médico", type="primary", use_container_width=True):
