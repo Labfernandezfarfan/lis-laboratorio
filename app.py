@@ -2399,14 +2399,14 @@ elif menu == "🧪 Área Analítica (Carga)":
                 conn = conectar_db(); cur = conn.cursor()
                 
                 for r_id, val in valores_temporales.items():
-                    cur.execute("UPDATE resultados_items SET resultado = ? WHERE id = ?", (str(val), r_id))
+                    cur.execute("UPDATE resultados_items SET resultado = %s WHERE id = %s", (str(val), r_id))
                 
                 if tiene_pxe and r_id_pxe:
                     if archivo_grafico is not None:
                         bytes_imagen = archivo_grafico.getvalue()
-                        cur.execute("UPDATE resultados_items SET pxe_grafico = ? WHERE id = ?", (sqlite3.Binary(bytes_imagen), r_id_pxe))
+                        cur.execute("UPDATE resultados_items SET pxe_grafico = %s WHERE id = %s", (sqlite3.Binary(bytes_imagen), r_id_pxe))
                     elif eliminar_img:
-                        cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = ?", (r_id_pxe,))
+                        cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = %s", (r_id_pxe,))
                 
                 conn.commit(); conn.close()
                 
