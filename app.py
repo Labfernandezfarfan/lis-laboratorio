@@ -632,7 +632,8 @@ def obtener_configuracion_general():
 
 def listar_nomenclador():
     conn = conectar_db(); c = conn.cursor()
-    c.execute("SELECT codigo, nombre, unidades_bioquimicas FROM nomenclador ORDER BY codigo ASC")
+    # Usamos DISTINCT para que nunca se repita ninguna práctica en el buscador
+    c.execute("SELECT DISTINCT codigo, nombre, unidades_bioquimicas FROM nomenclador ORDER BY codigo ASC")
     res = c.fetchall(); conn.close(); return res
 
 def listar_todas_determinaciones():
@@ -821,16 +822,17 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     if proto_manual:
         nro_proto = proto_manual
     else:
+        # Buscamos el máximo de forma segura ignorando nulos y asegurando enteros
         c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
-        max_proto = c.fetchone()[0]
+        res_max = c.fetchone()
+        max_proto = res_max[0] if res_max and res_max[0] is not None else 1000
         
-        # 🛡️ Blindaje para asegurar que sea un entero válido
         try:
-            max_proto_int = int(max_proto) if max_proto is not None and str(max_proto).strip() != "" else 0
+            max_proto_int = int(max_proto)
         except (ValueError, TypeError):
-            max_proto_int = 0
+            max_proto_int = 1000
             
-        nro_proto = 1001 if max_proto_int == 0 else max_proto_int + 1
+        nro_proto = max_proto_int + 1
         
     try:
         c.execute("""
