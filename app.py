@@ -819,23 +819,14 @@ def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, n
     else:
         fecha_actual = datetime.now().strftime("%d/%m/%Y")
         
+    # Si ingresaste un número manual lo respeta directo; si no, calcula por cantidad de órdenes
     if proto_manual:
         nro_proto = proto_manual
     else:
-        # En lugar de MAX(nro_protocolo) que puede chocar, contamos cuántas órdenes hay y sumamos de forma segura
         c.execute("SELECT COUNT(*) FROM ordenes")
-        total_ordenes = c.fetchone()[0]
-        
-        # Partimos de 1001 y le sumamos la cantidad de órdenes existentes + 1 para que nunca se repita
+        res_total = c.fetchone()
+        total_ordenes = res_total[0] if res_total and res_total[0] is not None else 0
         nro_proto = 1001 + total_ordenes
-        
-        # Bucle de seguridad por si el número justo ya existe en la base de datos
-        while True:
-            c.execute("SELECT id FROM ordenes WHERE nro_protocolo = %s", (nro_proto,))
-            if c.fetchone():
-                nro_proto += 1
-            else:
-                break
         
     try:
         c.execute("""
