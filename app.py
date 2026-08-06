@@ -2376,7 +2376,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                 if r_id_pxe:
                     try:
                         conn_img = conectar_db(); cur_img = conn_img.cursor()
-                        cur_img.execute("SELECT pxe_grafico FROM resultados_items WHERE id = ? AND pxe_grafico IS NOT NULL", (r_id_pxe,))
+                        cur_img.execute("SELECT pxe_grafico FROM resultados_items WHERE id = %s AND pxe_grafico IS NOT NULL", (r_id_pxe,))
                         row = cur_img.fetchone()
                         if row: imagen_guardada = row[0]
                         conn_img.close()
@@ -2394,27 +2394,34 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-            # Botón de Guardar Persistente
+             # Botón de Guardar Persistente
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db(); cur = conn.cursor()
                 
-                for r_id, val in valores_temporales.items():
-                    cur.execute("UPDATE resultados_items SET resultado = %s WHERE id = %s", (str(val), r_id))
-                
-                if tiene_pxe and r_id_pxe:
-                    if archivo_grafico is not None:
-                        bytes_imagen = archivo_grafico.getvalue()
-                        cur.execute("UPDATE resultados_items SET pxe_grafico = %s WHERE id = %s", (sqlite3.Binary(bytes_imagen), r_id_pxe))
-                    elif eliminar_img:
-                        cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = %s", (r_id_pxe,))
-                
-                conn.commit(); conn.close()
-                
-                if not hubo_error_ldl:
-                    st.success("Resultados guardados con éxito.")
-                    st.rerun()
-                else:
-                    st.warning("Se guardaron los demás resultados, pero el LDL no pudo procesarse. Revisa el error rojo de arriba.")
+                try:
+                    for r_id, val in valores_temporales.items():
+                        cur.execute("UPDATE resultados_items SET resultado = %s WHERE id = %s", (str(val), r_id))
+                    
+                    if tiene_pxe and r_id_pxe:
+                        if archivo_grafico is not None:
+                            bytes_imagen = archivo_grafico.getvalue()
+                            # CORREGIDO: Se pasan los bytes directos compatibles con PostgreSQL, sin sqlite3.Binary
+                            cur.execute("UPDATE resultados_items SET pxe_grafico = %s WHERE id = %s", (bytes_imagen, r_id_pxe))
+                        elif eliminar_img:
+                            cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = %s", (r_id_pxe,))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    if not hubo_error_ldl:
+                        st.success("Resultados guardados con éxito.")
+                        st.rerun()
+                    else:
+                        st.warning("Se guardaron los demás resultados, pero el LDL no pudo procesarse. Revisa el error rojo de arriba.")
+                except Exception as e:
+                    conn.rollback()
+                    conn.close()
+                    st.error(f"Error al guardar los resultados: {e}")
 elif menu == "🖨️ Validación e Informes":
     st.header("🖨️ Impresión y Validación de Informes Bioquímicos")
     ordenes = buscar_ordenes_todas()
