@@ -2394,34 +2394,55 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente
+             # Botón de Guardar Persistente y Blindado
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
-                conn = conectar_db(); cur = conn.cursor()
+                conn = conectar_db()
+                cur = conn.cursor()
                 
                 try:
+                    filas_actualizadas = 0
                     for r_id, val in valores_temporales.items():
-                        cur.execute("UPDATE resultados_items SET resultado = %s WHERE id = %s", (str(val), r_id))
+                        # Nos aseguramos de que el ID sea estrictamente un entero numérico
+                        try:
+                            item_id = int(r_id)
+                        except (ValueError, TypeError):
+                            continue
+                            
+                        resultado_str = str(val) if val is not None else ""
+                        
+                        cur.execute(
+                            "UPDATE resultados_items SET resultado = %s WHERE id = %s", 
+                            (resultado_str, item_id)
+                        )
+                        filas_actualizadas += cur.rowcount
                     
                     if tiene_pxe and r_id_pxe:
-                        if archivo_grafico is not None:
-                            bytes_imagen = archivo_grafico.getvalue()
-                            # CORREGIDO: Se pasan los bytes directos compatibles con PostgreSQL, sin sqlite3.Binary
-                            cur.execute("UPDATE resultados_items SET pxe_grafico = %s WHERE id = %s", (bytes_imagen, r_id_pxe))
-                        elif eliminar_img:
-                            cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = %s", (r_id_pxe,))
+                        try:
+                            pxe_id = int(r_id_pxe)
+                            if archivo_grafico is not None:
+                                bytes_imagen = archivo_grafico.getvalue()
+                                cur.execute("UPDATE resultados_items SET pxe_grafico = %s WHERE id = %s", (bytes_imagen, pxe_id))
+                            elif eliminar_img:
+                                cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = %s", (pxe_id,))
+                        except Exception as ex:
+                            print(f"Error al procesar gráfico PXE: {ex}")
                     
                     conn.commit()
                     conn.close()
                     
+                    print(f"Depuración: Se actualizaron {filas_actualizadas} ítems correctamente en la BD.")
+                    
                     if not hubo_error_ldl:
-                        st.success("Resultados guardados con éxito.")
+                        st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
                         st.rerun()
                     else:
                         st.warning("Se guardaron los demás resultados, pero el LDL no pudo procesarse. Revisa el error rojo de arriba.")
+                        
                 except Exception as e:
                     conn.rollback()
                     conn.close()
-                    st.error(f"Error al guardar los resultados: {e}")
+                    st.error(f"Error crítico al guardar los resultados en la base de datos: {e}")
+                    
 elif menu == "🖨️ Validación e Informes":
     st.header("🖨️ Impresión y Validación de Informes Bioquímicos")
     ordenes = buscar_ordenes_todas()
