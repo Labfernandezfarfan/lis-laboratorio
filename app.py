@@ -2199,6 +2199,8 @@ elif menu == "🧪 Área Analítica (Carga)":
                             val_a_mostrar = valores_temporales[sub_item_clean]
 
                         # 4. Dibujamos el input
+                        clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
+
                         if seleccion_resp == "-- Manual --":
                             val_input = st.text_input(
                                 "Resultado",
