@@ -3836,7 +3836,7 @@ elif menu == "⚙️ Configuración de Análisis":
         if uploaded_firma is not None:
             if st.button("💾 Guardar y Vincular Firma"):
                 conn = conectar_db(); cur = conn.cursor()
-                cur.execute("UPDATE bioquimicos SET firma_blob = ? WHERE id = ?", (sqlite3.Binary(uploaded_firma.getvalue()), bq_firma_sel))
+                cur.execute("UPDATE bioquimicos SET firma_blob = %s WHERE id = %s", (sqlite3.Binary(uploaded_firma.getvalue()), bq_firma_sel))
                 conn.commit(); conn.close(); st.success("Firma vinculada de manera exitosa."); st.rerun()
 elif menu == "📊 Estadísticas e Historial":
     import sqlite3
