@@ -2060,53 +2060,52 @@ elif menu == "🧪 Área Analítica (Carga)":
             mapa_codigos = {}
             
             # Función auxiliar interna para traer antecedentes de manera segura
-            def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=15):
-                if not codigo_item:
-                    return []
+            def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=10):
+            if not codigo_item:
+                return []
 
-                conn = conectar_db()
-                cur = conn.cursor()
+            conn = conectar_db()
+            cur = conn.cursor()
+            historial = []
+
+            query = """
+                SELECT 
+                    o.fecha, 
+                    ri.resultado, 
+                    ri.unidad, 
+                    o.id AS nro_protocolo
+                FROM resultados_items ri
+                JOIN ordenes o ON ri.orden_id = o.id
+                LEFT JOIN pacientes p ON o.paciente_id = p.id
+                WHERE (o.paciente_id = %s OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s)))
+                  AND (
+                      TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(%s)) 
+                      OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(%s))
+                  )
+                  AND o.id < %s
+                  AND ri.resultado IS NOT NULL 
+                  AND TRIM(CAST(ri.resultado AS TEXT)) != ''
+                ORDER BY o.id DESC
+                LIMIT %s
+            """
+
+            try:
+                cur.execute(query, (
+                    paciente_id, 
+                    str(nombre_paciente).strip() if nombre_paciente else "", 
+                    str(codigo_item).strip(), 
+                    str(codigo_item).strip(), 
+                    orden_id_actual, 
+                    limite
+                ))
+                historial = cur.fetchall()
+            except Exception as e:
+                print(f"Error al consultar historial: {e}")
                 historial = []
+            finally:
+                conn.close()
 
-                # Ampliamos la consulta para buscar tanto por el código exacto como por coincidencias de sub_item
-                query = """
-                    SELECT 
-                        o.fecha, 
-                        ri.resultado, 
-                        ri.unidad, 
-                        o.id AS nro_protocolo
-                    FROM resultados_items ri
-                    JOIN ordenes o ON ri.orden_id = o.id
-                    LEFT JOIN pacientes p ON o.paciente_id = p.id
-                    WHERE (o.paciente_id = ? OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(?)))
-                      AND (
-                          TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(?)) 
-                          OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(?))
-                      )
-                      AND o.id < ?
-                      AND ri.resultado IS NOT NULL 
-                      AND TRIM(CAST(ri.resultado AS TEXT)) != ''
-                    ORDER BY o.id DESC
-                    LIMIT ?
-                """
-
-                try:
-                    cur.execute(query, (
-                        paciente_id, 
-                        str(nombre_paciente).strip(), 
-                        str(codigo_item).strip(), 
-                        str(codigo_item).strip(), 
-                        orden_id_actual, # Usamos menor (<) que el protocolo actual para garantizar que sean estrictamente históricos hacia atrás
-                        limite
-                    ))
-                    historial = cur.fetchall()
-                except Exception as e:
-                    print(f"Error al consultar historial: {e}")
-                    historial = []
-                finally:
-                    conn.close()
-
-                return historial
+            return historial
 
                         # Cambiá tu bucle actual por este con enumerate(items):
             for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
@@ -2233,14 +2232,23 @@ elif menu == "🧪 Área Analítica (Carga)":
 
 
 
-                # Alimentamos el mapa de códigos en tiempo real para cada ítem procesado
-                codigo_str = str(item_c).strip().upper()
+                # Alimentamos el mapa de códigos en tiempo real usando el código del ítem como clave
+                codigo_str = str(item_c).strip().upper() if item_c else str(sub_item).strip().upper()
+                
+                # Obtenemos el valor actual ingresado usando la misma clave segura
+                val_actual_en_memoria = valores_temporales.get(codigo_str, str(resultado) if resultado is not None else "")
+                
                 mapa_codigos[codigo_str] = {
                     'r_id': r_id,
-                    'valor': str(valores_temporales.get(r_id, "")).strip()
+                    'valor': str(val_actual_en_memoria).strip()
                 }
-            
-            st.markdown("<br>", unsafe_allow_html=True)
+                
+                # Opcional: si tu sistema busca también por el nombre del sub_item en las fórmulas
+                if sub_item:
+                    mapa_codigos[str(sub_item).strip().upper()] = {
+                        'r_id': r_id,
+                        'valor': str(val_actual_en_memoria).strip()
+                    }
 
             # -----------------------------------------------------------------
             # FASE 2: MOTOR DE PROCESAMIENTO MATEMÁTICO (FÓRMULAS) - ADAPTADO
