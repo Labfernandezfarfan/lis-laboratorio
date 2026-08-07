@@ -2348,25 +2348,32 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception as e:
                 hubo_error_ldl = True
 
-            # FGe CKD-EPI (Movido al final para asegurar lectura de la creatinina ingresada)
+            # FGe CKD-EPI - Versión Forzada
             crea_val = mapa_codigos.get("192", {}).get("valor", "")
-            if not crea_val:
-                # Buscamos alternativamente por nombre si el código 192 varía
-                for k, v in mapa_codigos.items():
-                    if 'creatinina' in k.lower():
-                        crea_val = v.get("valor", "")
-                        break
             
-            if crea_val:
+            # Aseguramos obtener Edad y Sexo del contexto de la sesión si no están definidos
+            edad_calc = p_edad if 'p_edad' in locals() else st.session_state.get('paciente_edad', 30)
+            sexo_calc = p_sexo if 'p_sexo' in locals() else st.session_state.get('paciente_sexo', 'M')
+
+            if crea_val and str(crea_val).replace('.', '', 1).isdigit():
                 try:
-                    fge_val = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), p_edad, p_sexo)
-                    if fge_val:
+                    fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), edad_calc, sexo_calc)
+                    
+                    if fge_resultado:
+                        # Buscamos la clave para el FGE
+                        c_fge = "FGE" 
                         if "FGE" in mapa_codigos:
                             c_fge = mapa_codigos["FGE"].get('codigo_item') or "FGE"
-                            valores_temporales[str(c_fge).strip()] = str(fge_val)
-                            if str(c_fge).strip() in st.session_state:
-                                st.session_state[str(c_fge).strip()] = str(fge_val)
-                except Exception:
+                        
+                        valores_temporales[str(c_fge).strip()] = str(fge_resultado)
+                        
+                        # Inyección directa en el componente de Streamlit
+                        # Asegúrate de que el key de tu st.text_input para FGE sea exactamente "FGE"
+                        if "FGE" in st.session_state:
+                            st.session_state["FGE"] = str(fge_resultado)
+                            # Este comando fuerza a Streamlit a redibujar el valor en pantalla
+                            st.rerun() 
+                except Exception as e:
                     pass
 
             # Fórmulas Dinámicas Personalizadas
