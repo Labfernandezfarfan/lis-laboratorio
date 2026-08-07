@@ -2394,54 +2394,50 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente y Blindado
+             # Botón de Guardar Persistente Blindado por Protocolo
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
                 
                 try:
                     filas_actualizadas = 0
+                    
+                    # Recorremos los valores temporales en pantalla
                     for r_id, val in valores_temporales.items():
-                        # Nos aseguramos de que el ID sea estrictamente un entero numérico
-                        try:
-                            item_id = int(r_id)
-                        except (ValueError, TypeError):
-                            continue
-                            
                         resultado_str = str(val) if val is not None else ""
                         
+                        # Actualizamos directamente por el ID del ítem de resultado
                         cur.execute(
                             "UPDATE resultados_items SET resultado = %s WHERE id = %s", 
-                            (resultado_str, item_id)
+                            (resultado_str, int(r_id))
                         )
                         filas_actualizadas += cur.rowcount
                     
-                    if tiene_pxe and r_id_pxe:
-                        try:
-                            pxe_id = int(r_id_pxe)
-                            if archivo_grafico is not None:
-                                bytes_imagen = archivo_grafico.getvalue()
-                                cur.execute("UPDATE resultados_items SET pxe_grafico = %s WHERE id = %s", (bytes_imagen, pxe_id))
-                            elif eliminar_img:
-                                cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = %s", (pxe_id,))
-                        except Exception as ex:
-                            print(f"Error al procesar gráfico PXE: {ex}")
-                    
+                    # Si por los IDs directos actualizó 0, hacemos un respaldo actualizando por el protocolo activo y el código de ítem
+                    if filas_actualizadas == 0 and 'protocolo_actual_seleccionado' in locals():
+                        for r_id, val in valores_temporales.items():
+                            resultado_str = str(val) if val is not None else ""
+                            cur.execute("""
+                                UPDATE resultados_items ri
+                                SET resultado = %s
+                                FROM ordenes o
+                                WHERE ri.orden_id = o.id AND o.nro_protocolo = %s AND ri.id = %s
+                            """, (resultado_str, protocolo_actual_seleccionado, int(r_id)))
+                            filas_actualizadas += cur.rowcount
+
                     conn.commit()
                     conn.close()
                     
-                    print(f"Depuración: Se actualizaron {filas_actualizadas} ítems correctamente en la BD.")
-                    
-                    if not hubo_error_ldl:
+                    if filas_actualizadas > 0:
                         st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
                         st.rerun()
                     else:
-                        st.warning("Se guardaron los demás resultados, pero el LDL no pudo procesarse. Revisa el error rojo de arriba.")
+                        st.warning("⚠️ No se pudieron sincronizar los ítems con este protocolo. Verifique que la orden exista en la base de datos.")
                         
                 except Exception as e:
                     conn.rollback()
                     conn.close()
-                    st.error(f"Error crítico al guardar los resultados en la base de datos: {e}")
+                    st.error(f"Error crítico al guardar: {e}")
                     
 elif menu == "🖨️ Validación e Informes":
     st.header("🖨️ Impresión y Validación de Informes Bioquímicos")
