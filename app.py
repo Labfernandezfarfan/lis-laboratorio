@@ -2178,24 +2178,26 @@ elif menu == "🧪 Área Analítica (Carga)":
                         val_a_mostrar = str(resultado if resultado is not None else "")
                         
                         # 2. Lógica para el cálculo de FGe
+                        # Lógica para el cálculo de FGe (Solo para la Creatinina)
                         c_item_clean = str(item_c).strip().upper() if item_c else ""
                         sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
                         
                         if c_item_clean == "192" or "CREATININA" in sub_item_clean:
                             try:
-                                v_num = float(str(resultado).replace(',', '.')) if resultado else 0.0
+                                v_num = float(str(val_input).replace(',', '.')) if 'val_input' in locals() else float(str(resultado).replace(',', '.'))
                                 if v_num > 0:
                                     res_fge = calcular_fge_ckd_epi(str(v_num), p_edad, p_sexo)
+                                    # LO IMPORTANTE: Guardamos directo en el diccionario que usa el sistema
+                                    valores_temporales["FGe"] = res_fge
                                     st.session_state[f"fge_val_{orden_id}"] = res_fge
                             except: pass
 
-                        # 3. Asignación del valor
+                        # Aseguramos que la fila de Filtrado Glomerular tome el valor calculado
                         if ("FGE" in c_item_clean or "FILTRADO" in sub_item_clean or c_item_clean == "1070"):
-                            val_a_mostrar = st.session_state.get(f"fge_val_{orden_id}", val_a_mostrar)
-                        elif c_item_clean in valores_temporales:
-                            val_a_mostrar = valores_temporales[c_item_clean]
-                        elif sub_item_clean in valores_temporales:
-                            val_a_mostrar = valores_temporales[sub_item_clean]
+                            if "FGe" in valores_temporales and valores_temporales["FGe"]:
+                                val_a_mostrar = valores_temporales["FGe"]
+                            elif f"fge_val_{orden_id}" in st.session_state:
+                                val_a_mostrar = st.session_state[f"fge_val_{orden_id}"]
 
                         # 4. Input final
                         if seleccion_resp == "-- Manual --":
