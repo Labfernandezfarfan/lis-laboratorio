@@ -2347,35 +2347,22 @@ elif menu == "🧪 Área Analítica (Carga)":
                                     valores_temporales[str(c_ldl).strip()] = str(int(ldl_calc))
             except Exception as e:
                 hubo_error_ldl = True
-            # Línea de depuración: ver qué claves reconoce Streamlit
-            st.write(f"Claves disponibles en sesión: {list(st.session_state.keys())}")
-            
-            # FGe CKD-EPI - Versión Forzada
+                
+            # FGe CKD-EPI - Versión con Clave Dinámica Correcta
             crea_val = mapa_codigos.get("192", {}).get("valor", "")
             
-            # Aseguramos obtener Edad y Sexo del contexto de la sesión si no están definidos
-            edad_calc = p_edad if 'p_edad' in locals() else st.session_state.get('paciente_edad', 30)
-            sexo_calc = p_sexo if 'p_sexo' in locals() else st.session_state.get('paciente_sexo', 'M')
+            # Buscamos la clave real de FGe en la sesión basándonos en el patrón detectado
+            clave_fge_real = next((k for k in st.session_state.keys() if "_FGe_" in k), "val_94_FGe_20")
 
             if crea_val and str(crea_val).replace('.', '', 1).isdigit():
                 try:
                     fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), edad_calc, sexo_calc)
                     
                     if fge_resultado:
-                        # Buscamos la clave para el FGE
-                        c_fge = "FGE" 
-                        if "FGE" in mapa_codigos:
-                            c_fge = mapa_codigos["FGE"].get('codigo_item') or "FGE"
-                        
-                        valores_temporales[str(c_fge).strip()] = str(fge_resultado)
-                        
-                        # Inyección directa en el componente de Streamlit
-                        # Asegúrate de que el key de tu st.text_input para FGE sea exactamente "FGE"
-                        if "FGE" in st.session_state:
-                            st.session_state["FGE"] = str(fge_resultado)
-                            # Este comando fuerza a Streamlit a redibujar el valor en pantalla
-                            st.rerun() 
-                except Exception as e:
+                        # Actualizamos tanto el mapa interno como el componente visual
+                        valores_temporales[clave_fge_real] = str(fge_resultado)
+                        st.session_state[clave_fge_real] = str(fge_resultado)
+                except Exception:
                     pass
 
             # Fórmulas Dinámicas Personalizadas
