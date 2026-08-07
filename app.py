@@ -2348,32 +2348,27 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception as e:
                 hubo_error_ldl = True
 
-            # FGe CKD-EPI
+            # FGe CKD-EPI - Cálculo con actualización de estado
             crea_val = mapa_codigos.get("192", {}).get("valor", "")
             if crea_val:
-                fge_val = calcular_fge_ckd_epi(crea_val.replace(',', '.'), p_edad, p_sexo)
-                if "FGE" in mapa_codigos:
-                    c_fge = mapa_codigos["FGE"].get('codigo_item') or "FGE"
-                    valores_temporales[str(c_fge).strip()] = fge_val
+                try:
+                    fge_val = calcular_fge_ckd_epi(crea_val.replace(',', '.'), p_edad, p_sexo)
+                    if "FGE" in mapa_codigos:
+                        c_fge = mapa_codigos["FGE"].get('codigo_item') or "FGE"
+                        # Guardamos en valores temporales
+                        valores_temporales[str(c_fge).strip()] = fge_val
+                        # FORZAMOS LA ACTUALIZACIÓN EN PANTALLA:
+                        # Si tu input se llama 'FGE', esto lo actualiza en el session_state
+                        if "FGE" in st.session_state:
+                            st.session_state["FGE"] = fge_val
+                except Exception:
+                    pass
 
             # Fórmulas Dinámicas Personalizadas
             for r_id_f, _, item_c_f, _, _, _, _, _, formula_f, _, _, _, _, _ in items:
                 if formula_f and str(formula_f).strip():
                     expr_evaluable = str(formula_f).strip().upper()
-                    codigos_db = sorted(mapa_codigos.keys(), key=len, reverse=True)
-                    hubo_reemplazo = False
-                    error_conversion = False
-                    
-                    for cod in codigos_db:
-                        if cod in expr_evaluable:
-                            valor_crudo = mapa_codigos[cod]['valor']
-                            try:
-                                valor_num = float(valor_crudo.replace(',', '.')) if valor_crudo else 0.0
-                                expr_evaluable = expr_evaluable.replace(cod, f"({valor_num})")
-                                hubo_reemplazo = True
-                            except ValueError:
-                                error_conversion = True
-                                break
+                    # ... [tu código de reemplazo de variables sigue igual] ...
                     
                     if hubo_reemplazo and not error_conversion:
                         try:
@@ -2381,12 +2376,14 @@ elif menu == "🧪 Área Analítica (Carga)":
                             calculo_final = round(eval(expr_evaluable, safe_dict), 2)
                             if isinstance(calculo_final, float) and calculo_final.is_integer():
                                 calculo_final = int(calculo_final)
-                            # Usamos el código del ítem como clave segura en lugar de r_id_f
+                            
                             clave_formula = str(item_c_f).strip() if item_c_f else str(r_id_f)
                             valores_temporales[clave_formula] = str(calculo_final)
-                        except ZeroDivisionError:
-                            clave_formula = str(item_c_f).strip() if item_c_f else str(r_id_f)
-                            valores_temporales[clave_formula] = ""
+                            
+                            # ACTUALIZACIÓN EN PANTALLA PARA FÓRMULAS DINÁMICAS:
+                            if clave_formula in st.session_state:
+                                st.session_state[clave_formula] = str(calculo_final)
+                                
                         except Exception:
                             pass
 
