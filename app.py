@@ -2173,20 +2173,21 @@ elif menu == "🧪 Área Analítica (Carga)":
                     with col_sub_manual:
                         clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
                         
-                        # Determinamos si hay un valor calculado exclusivamente para este ítem
+                        # Asignación estricta y limpia por código exacto del ítem
                         val_a_mostrar = str(resultado if resultado is not None else "")
                         
-                        # Limpiamos los códigos para comparar con precisión quirúrgica
                         c_item_clean = str(item_c).strip().upper() if item_c else ""
                         sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
                         
+                        # Si el motor matemático calculó algo para este código específico, lo usamos
                         if c_item_clean and c_item_clean in valores_temporales:
                             val_a_mostrar = valores_temporales[c_item_clean]
                         elif sub_item_clean and sub_item_clean in valores_temporales:
                             val_a_mostrar = valores_temporales[sub_item_clean]
-                        elif "FGE" in c_item_clean or "FGE" in sub_item_clean:
-                            if "FGe" in valores_temporales:
-                                val_a_mostrar = valores_temporales["FGe"]
+                        
+                        # Caso especial estricto para el Filtrado Glomerular (evitando que agarre el VCM)
+                        if ("FGE" in c_item_clean or "FGE" in sub_item_clean or "1070" in c_item_clean) and "FGe" in valores_temporales:
+                            val_a_mostrar = valores_temporales["FGe"]
 
                         if seleccion_resp == "-- Manual --":
                             val_input = st.text_input(
