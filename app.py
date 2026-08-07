@@ -2394,34 +2394,42 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente - Sincronización Directa por Código de Ítem
+             # Botón de Guardar Persistente - Actualización por Posición en Pantalla
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
                 
                 try:
                     filas_actualizadas = 0
-                    id_orden_real = None
                     
                     # 1. Obtenemos el ID de la orden más reciente o activa
                     cur.execute("SELECT id FROM ordenes ORDER BY id DESC LIMIT 1")
                     row_reciente = cur.fetchone()
+                    
                     if row_reciente:
                         id_orden_real = row_reciente[0]
-                    
-                    if id_orden_real:
-                        # 2. Recorremos los valores y actualizamos buscando por el código del ítem y la orden
-                        for codigo_item_key, val in valores_temporales.items():
-                            resultado_str = str(val) if val is not None else ""
-                            
-                            # Actualizamos los resultados donde coincida la orden y el código de la determinación
-                            cur.execute("""
-                                UPDATE resultados_items 
-                                SET resultado = %s 
-                                WHERE orden_id = %s AND (codigo_item::text = %s OR id::text = %s)
-                            """, (resultado_str, id_orden_real, str(codigo_item_key), str(codigo_item_key)))
-                            
-                            filas_actualizadas += cur.rowcount
+                        
+                        # 2. Traemos todos los IDs de los items que pertenecen a esta orden en la base de datos, ordenados por su ID o visualización
+                        cur.execute("SELECT id FROM resultados_items WHERE orden_id = %s ORDER BY id ASC", (id_orden_real,))
+                        items_db = cur.fetchall()
+                        
+                        # 3. Mapeamos los valores ingresados en pantalla en el mismo orden secuencial
+                        valores_lista = list(valores_temporales.values())
+                        
+                        for idx, row_db in enumerate(items_db):
+                            if idx < len(valores_lista):
+                                item_id_db = row_db[0]
+                                val = valores_lista[idx]
+                                resultado_str = str(val) if val is not None else ""
+                                
+                                # Actualizamos directamente el registro correspondiente por su ID en la base de datos
+                                cur.execute("""
+                                    UPDATE resultados_items 
+                                    SET resultado = %s 
+                                    WHERE id = %s
+                                """, (resultado_str, item_id_db))
+                                
+                                filas_actualizadas += cur.rowcount
                     
                     conn.commit()
                     conn.close()
@@ -2430,7 +2438,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                         st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
                         st.rerun()
                     else:
-                        st.warning("⚠️ La orden existe pero los códigos de los ítems no coinciden con los de la base de datos. Verifique la estructura de las determinaciones.")
+                        st.warning("⚠️ No se encontraron ítems vinculados a esta orden en la base de datos.")
                         
                 except Exception as e:
                     conn.rollback()
