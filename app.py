@@ -2394,70 +2394,59 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente - Detección Universal de Protocolo
+             # Botón de Guardar Persistente - Búsqueda Directa por la Orden Activa
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
                 
                 try:
                     filas_actualizadas = 0
-                    proto_activo = None
+                    id_orden_real = None
                     
-                    # Buscamos en todas las variables posibles de Streamlit el protocolo activo
-                    for var_nombre in ['protocolo_seleccionado', 'proto_sel', 'nro_protocolo_actual', 'protocolo_actual', 'selected_protocol', 'nro_proto']:
-                        if var_nombre in locals() and locals()[var_nombre]:
-                            proto_activo = locals()[var_nombre]
-                            break
-                        if var_nombre in st.session_state and st.session_state[var_nombre]:
-                            proto_activo = st.session_state[var_nombre]
-                            break
-
-                    # Si todavía no lo encontró, intentamos extraerlo si el selectbox guarda un texto tipo "1001 - Juan Pérez"
-                    if not proto_activo:
-                        for key, val in st.session_state.items():
-                            if 'protocolo' in key.lower() or 'proto' in key.lower():
-                                if val and (isinstance(val, (int, float)) or str(val).isdigit()):
-                                    proto_activo = val
-                                    break
-                                elif val and isinstance(val, str):
-                                    # Extraemos los números del string (ej: "1001 - Perez" -> 1001)
-                                    import re
-                                    numeros = re.findall(r'\d+', val)
-                                    if numeros:
-                                        proto_activo = numeros[0]
-                                        break
-
-                    if proto_activo:
-                        # 1. Buscamos el ID interno real de la orden en PostgreSQL
-                        cur.execute("SELECT id FROM ordenes WHERE nro_protocolo::text = %s", (str(proto_activo),))
-                        orden_row = cur.fetchone()
-                        
-                        if orden_row:
-                            id_orden_real = orden_row[0]
+                    # 1. Intentamos deducir el ID de la orden directamente desde los IDs de los resultados en pantalla
+                    if valores_temporales:
+                        primer_r_id = list(valores_temporales.keys())[0]
+                        if str(primer_r_id).isdigit():
+                            cur.execute("SELECT orden_id FROM resultados_items WHERE id = %s", (int(primer_r_id),))
+                            row_ord = cur.fetchone()
+                            if row_ord:
+                                id_orden_real = row_ord[0]
+                    
+                    # 2. Si no lo encontramos por los ítems, buscamos el protocolo más reciente o activo en la base de datos
+                    if not id_orden_real:
+                        cur.execute("SELECT id FROM ordenes ORDER BY id DESC LIMIT 1")
+                        row_reciente = cur.fetchone()
+                        if row_reciente:
+                            id_orden_real = row_reciente[0]
+                    
+                    if id_orden_real:
+                        # 3. Actualizamos todos los resultados de esa orden de manera directa y segura
+                        for r_id, val in valores_temporales.items():
+                            resultado_str = str(val) if val is not None else ""
                             
-                            # 2. Actualizamos los resultados asociados a ese ID de orden
-                            for r_id, val in valores_temporales.items():
-                                resultado_str = str(val) if val is not None else ""
+                            if str(r_id).isdigit():
                                 cur.execute("""
                                     UPDATE resultados_items 
                                     SET resultado = %s 
-                                    WHERE orden_id = %s AND (id = %s OR codigo_item::text = %s)
-                                """, (resultado_str, id_orden_real, int(r_id) if str(r_id).isdigit() else 0, str(r_id)))
+                                    WHERE orden_id = %s AND id = %s
+                                """, (resultado_str, id_orden_real, int(r_id)))
+                            else:
+                                cur.execute("""
+                                    UPDATE resultados_items 
+                                    SET resultado = %s 
+                                    WHERE orden_id = %s AND codigo_item::text = %s
+                                """, (resultado_str, id_orden_real, str(r_id)))
                                 
-                                filas_actualizadas += cur.rowcount
-                        else:
-                            st.error(f"❌ El protocolo N° {proto_activo} no existe en la tabla 'ordenes'.")
-                    else:
-                        st.error("❌ No se pudo detectar el protocolo activo. Asegúrese de haber seleccionado un protocolo en la lista superior.")
-
+                            filas_actualizadas += cur.rowcount
+                    
                     conn.commit()
                     conn.close()
                     
                     if filas_actualizadas > 0:
                         st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
                         st.rerun()
-                    elif proto_activo:
-                        st.warning("⚠️ Se encontró el protocolo, pero los ítems no coincidieron para actualizarse.")
+                    else:
+                        st.warning("⚠️ No se encontraron registros para actualizar en esta orden.")
                         
                 except Exception as e:
                     conn.rollback()
