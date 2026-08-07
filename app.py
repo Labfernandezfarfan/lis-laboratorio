@@ -2394,7 +2394,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente - Búsqueda Directa por la Orden Activa
+             # Botón de Guardar Persistente - Sincronización Directa por Código de Ítem
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
@@ -2403,40 +2403,24 @@ elif menu == "🧪 Área Analítica (Carga)":
                     filas_actualizadas = 0
                     id_orden_real = None
                     
-                    # 1. Intentamos deducir el ID de la orden directamente desde los IDs de los resultados en pantalla
-                    if valores_temporales:
-                        primer_r_id = list(valores_temporales.keys())[0]
-                        if str(primer_r_id).isdigit():
-                            cur.execute("SELECT orden_id FROM resultados_items WHERE id = %s", (int(primer_r_id),))
-                            row_ord = cur.fetchone()
-                            if row_ord:
-                                id_orden_real = row_ord[0]
-                    
-                    # 2. Si no lo encontramos por los ítems, buscamos el protocolo más reciente o activo en la base de datos
-                    if not id_orden_real:
-                        cur.execute("SELECT id FROM ordenes ORDER BY id DESC LIMIT 1")
-                        row_reciente = cur.fetchone()
-                        if row_reciente:
-                            id_orden_real = row_reciente[0]
+                    # 1. Obtenemos el ID de la orden más reciente o activa
+                    cur.execute("SELECT id FROM ordenes ORDER BY id DESC LIMIT 1")
+                    row_reciente = cur.fetchone()
+                    if row_reciente:
+                        id_orden_real = row_reciente[0]
                     
                     if id_orden_real:
-                        # 3. Actualizamos todos los resultados de esa orden de manera directa y segura
-                        for r_id, val in valores_temporales.items():
+                        # 2. Recorremos los valores y actualizamos buscando por el código del ítem y la orden
+                        for codigo_item_key, val in valores_temporales.items():
                             resultado_str = str(val) if val is not None else ""
                             
-                            if str(r_id).isdigit():
-                                cur.execute("""
-                                    UPDATE resultados_items 
-                                    SET resultado = %s 
-                                    WHERE orden_id = %s AND id = %s
-                                """, (resultado_str, id_orden_real, int(r_id)))
-                            else:
-                                cur.execute("""
-                                    UPDATE resultados_items 
-                                    SET resultado = %s 
-                                    WHERE orden_id = %s AND codigo_item::text = %s
-                                """, (resultado_str, id_orden_real, str(r_id)))
-                                
+                            # Actualizamos los resultados donde coincida la orden y el código de la determinación
+                            cur.execute("""
+                                UPDATE resultados_items 
+                                SET resultado = %s 
+                                WHERE orden_id = %s AND (codigo_item::text = %s OR id::text = %s)
+                            """, (resultado_str, id_orden_real, str(codigo_item_key), str(codigo_item_key)))
+                            
                             filas_actualizadas += cur.rowcount
                     
                     conn.commit()
@@ -2446,7 +2430,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                         st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
                         st.rerun()
                     else:
-                        st.warning("⚠️ No se encontraron registros para actualizar en esta orden.")
+                        st.warning("⚠️ La orden existe pero los códigos de los ítems no coinciden con los de la base de datos. Verifique la estructura de las determinaciones.")
                         
                 except Exception as e:
                     conn.rollback()
