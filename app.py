@@ -2348,7 +2348,7 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception as e:
                 hubo_error_ldl = True
             # Línea de depuración: ver qué claves reconoce Streamlit
-st.write(f"Claves disponibles en sesión: {list(st.session_state.keys())}")
+            st.write(f"Claves disponibles en sesión: {list(st.session_state.keys())}")
             
             # FGe CKD-EPI - Versión Forzada
             crea_val = mapa_codigos.get("192", {}).get("valor", "")
