@@ -2175,7 +2175,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                         
                         with col_sub_manual:
                         # 1. Definimos el valor base que viene de la base de datos
-                        val_a_mostrar = str(resultado if resultado is not None else "")
+                            val_a_mostrar = str(resultado if resultado is not None else "")
                         
                         # --- PEGAS ESTO EXACTAMENTE AQUÍ ---
                         c_item_clean = str(item_c).strip().upper() if item_c else ""
