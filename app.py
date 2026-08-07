@@ -2394,7 +2394,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente Directo por Protocolo e Ítem
+             # Botón de Guardar Persistente usando el Protocolo Manual de la Interfaz
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
@@ -2402,23 +2402,38 @@ elif menu == "🧪 Área Analítica (Carga)":
                 try:
                     filas_actualizadas = 0
                     
-                    # Verificamos que tengamos un protocolo seleccionado en pantalla
-                    if 'protocolo_seleccionado' in locals() and protocolo_seleccionado:
-                        # Recorremos cada valor ingresado vinculándolo con el código del ítem correspondiente
-                        for r_id, val in valores_temporales.items():
-                            resultado_str = str(val) if val is not None else ""
+                    # Verificamos qué variable de protocolo tienes activa en la interfaz
+                    # (puede llamarse protocolo_seleccionado, proto_sel o similar según tu script)
+                    proto_activo = None
+                    for var_nombre in ['protocolo_seleccionado', 'proto_sel', 'nro_protocolo_actual', 'protocolo_actual']:
+                        if var_nombre in locals() and locals()[var_nombre]:
+                            proto_activo = locals()[var_nombre]
+                            break
+                    
+                    if proto_activo:
+                        # 1. Buscamos el ID interno real de la orden usando el número de protocolo manual
+                        cur.execute("SELECT id FROM ordenes WHERE nro_protocolo::text = %s", (str(proto_activo),))
+                        orden_row = cur.fetchone()
+                        
+                        if orden_row:
+                            id_orden_real = orden_row[0]
                             
-                            # Actualizamos directamente relacionando la orden por su número de protocolo
-                            cur.execute("""
-                                UPDATE resultados_items ri
-                                SET resultado = %s
-                                FROM ordenes o
-                                WHERE ri.orden_id = o.id 
-                                  AND o.nro_protocolo::text = %s 
-                                  AND (ri.id = %s OR ri.codigo_item::text = %s)
-                            """, (resultado_str, str(protocolo_seleccionado), int(r_id) if str(r_id).isdigit() else 0, str(r_id)))
-                            
-                            filas_actualizadas += cur.rowcount
+                            # 2. Actualizamos los resultados vinculados a ese ID de orden real
+                            for r_id, val in valores_temporales.items():
+                                resultado_str = str(val) if val is not None else ""
+                                
+                                # Actualizamos por el id del resultado o por la coincidencia en la orden
+                                cur.execute("""
+                                    UPDATE resultados_items 
+                                    SET resultado = %s 
+                                    WHERE orden_id = %s AND (id = %s OR codigo_item::text = %s)
+                                """, (resultado_str, id_orden_real, int(r_id) if str(r_id).isdigit() else 0, str(r_id)))
+                                
+                                filas_actualizadas += cur.rowcount
+                        else:
+                            st.error(f"❌ El protocolo N° {proto_activo} no se encontró en la tabla 'ordenes' de la base de datos.")
+                    else:
+                        st.error("❌ No se pudo identificar el número de protocolo activo en pantalla.")
 
                     conn.commit()
                     conn.close()
@@ -2426,13 +2441,13 @@ elif menu == "🧪 Área Analítica (Carga)":
                     if filas_actualizadas > 0:
                         st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
                         st.rerun()
-                    else:
-                        st.warning("⚠️ No se pudo sincronizar la actualización. Asegúrese de que este protocolo exista en la base de datos y tenga ítems cargados.")
+                    elif proto_activo:
+                        st.warning("⚠️ Se encontró el protocolo, pero los ítems no coincidieron para actualizarse.")
                         
                 except Exception as e:
                     conn.rollback()
                     conn.close()
-                    st.error(f"Error crítico al guardar: {e}")
+                    st.error(f"Error crítico al guardar por protocolo manual: {e}")
                     
 elif menu == "🖨️ Validación e Informes":
     st.header("🖨️ Impresión y Validación de Informes Bioquímicos")
