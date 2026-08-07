@@ -2061,51 +2061,51 @@ elif menu == "🧪 Área Analítica (Carga)":
             
             # Función auxiliar interna para traer antecedentes de manera segura
             def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=10):
-            if not codigo_item:
-                return []
+                if not codigo_item:
+                    return []
 
-            conn = conectar_db()
-            cur = conn.cursor()
-            historial = []
-
-            query = """
-                SELECT 
-                    o.fecha, 
-                    ri.resultado, 
-                    ri.unidad, 
-                    o.id AS nro_protocolo
-                FROM resultados_items ri
-                JOIN ordenes o ON ri.orden_id = o.id
-                LEFT JOIN pacientes p ON o.paciente_id = p.id
-                WHERE (o.paciente_id = %s OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s)))
-                  AND (
-                      TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(%s)) 
-                      OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(%s))
-                  )
-                  AND o.id < %s
-                  AND ri.resultado IS NOT NULL 
-                  AND TRIM(CAST(ri.resultado AS TEXT)) != ''
-                ORDER BY o.id DESC
-                LIMIT %s
-            """
-
-            try:
-                cur.execute(query, (
-                    paciente_id, 
-                    str(nombre_paciente).strip() if nombre_paciente else "", 
-                    str(codigo_item).strip(), 
-                    str(codigo_item).strip(), 
-                    orden_id_actual, 
-                    limite
-                ))
-                historial = cur.fetchall()
-            except Exception as e:
-                print(f"Error al consultar historial: {e}")
+                conn = conectar_db()
+                cur = conn.cursor()
                 historial = []
-            finally:
-                conn.close()
-
-            return historial
+    
+                query = """
+                    SELECT 
+                        o.fecha, 
+                        ri.resultado, 
+                        ri.unidad, 
+                        o.id AS nro_protocolo
+                    FROM resultados_items ri
+                    JOIN ordenes o ON ri.orden_id = o.id
+                    LEFT JOIN pacientes p ON o.paciente_id = p.id
+                    WHERE (o.paciente_id = %s OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s)))
+                      AND (
+                          TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(%s)) 
+                          OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(%s))
+                      )
+                      AND o.id < %s
+                      AND ri.resultado IS NOT NULL 
+                      AND TRIM(CAST(ri.resultado AS TEXT)) != ''
+                    ORDER BY o.id DESC
+                    LIMIT %s
+                """
+    
+                try:
+                    cur.execute(query, (
+                        paciente_id, 
+                        str(nombre_paciente).strip() if nombre_paciente else "", 
+                        str(codigo_item).strip(), 
+                        str(codigo_item).strip(), 
+                        orden_id_actual, 
+                        limite
+                    ))
+                    historial = cur.fetchall()
+                except Exception as e:
+                    print(f"Error al consultar historial: {e}")
+                    historial = []
+                finally:
+                    conn.close()
+    
+                return historial
 
                         # Cambiá tu bucle actual por este con enumerate(items):
             for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
