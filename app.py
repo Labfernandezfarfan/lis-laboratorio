@@ -2348,7 +2348,7 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception as e:
                 hubo_error_ldl = True
                 
-            # FGe CKD-EPI - Búsqueda Universal por Patrón
+            # FGe CKD-EPI - Actualización Universal e Informes
             crea_val = mapa_codigos.get("192", {}).get("valor", "")
             
             if crea_val and str(crea_val).replace('.', '', 1).isdigit():
@@ -2356,11 +2356,17 @@ elif menu == "🧪 Área Analítica (Carga)":
                     fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), edad_calc, sexo_calc)
                     
                     if fge_resultado:
-                        # Buscamos dinámicamente cualquier clave en la sesión que contenga 'FGe' o 'fge'
+                        # 1. Actualizamos todas las claves de sesión que correspondan al FGe
                         for session_key in list(st.session_state.keys()):
                             if "FGe" in session_key or "fge" in session_key:
                                 valores_temporales[session_key] = str(fge_resultado)
                                 st.session_state[session_key] = str(fge_resultado)
+                        
+                        # 2. Aseguramos que el mapa de códigos también lo tenga disponible para la vista de informe
+                        mapa_codigos["FGE"] = {
+                            'valor': str(fge_resultado),
+                            'codigo_item': "FGE"
+                        }
                 except Exception:
                     pass
 
