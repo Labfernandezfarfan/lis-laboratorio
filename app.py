@@ -2145,18 +2145,29 @@ elif menu == "🧪 Área Analítica (Carga)":
                         )
                     
                     with col_sub_manual:
+                        # CREAMOS UNA CLAVE 100% SEGURA BASADA EN EL CÓDIGO O NOMBRE DEL ÍTEM
+                        clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
+                        
                         if seleccion_resp == "-- Manual --":
                             val_actual_str = str(resultado) if resultado is not None else ""
                             val_input = st.text_input(
                                 "Resultado",
                                 value=str(resultado if resultado is not None else ""),
-                                key=f"val_{orden_id}_{r_id}_{idx}",  # 👈 Clave única asegurada para el cuadro de texto
+                                key=f"val_{orden_id}_{item_c}_{idx}",  # Clave única ajustada
                                 label_visibility="collapsed"
                             )
-                            valores_temporales[r_id] = val_input
+                            # Guardamos usando la clave segura en lugar de r_id
+                            valores_temporales[clave_segura] = val_input
                         else:
-                            st.text_input("Resultado", value=seleccion_resp, key=f"raw_dis_{r_id}", disabled=True, label_visibility="collapsed")
-                            valores_temporales[r_id] = seleccion_resp
+                            st.text_input(
+                                "Resultado", 
+                                value=seleccion_resp, 
+                                key=f"raw_dis_{item_c}_{idx}", 
+                                disabled=True, 
+                                label_visibility="collapsed"
+                            )
+                            # Guardamos usando la clave segura en lugar de r_id
+                            valores_temporales[clave_segura] = seleccion_resp
 
                 with col_u:
                     if unidad:
