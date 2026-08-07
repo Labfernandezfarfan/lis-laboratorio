@@ -2394,51 +2394,74 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente - Actualización por Posición en Pantalla
+             # Botón de Guardar Persistente - Sincronización Universal y Diagnóstico
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
                 
                 try:
                     filas_actualizadas = 0
+                    id_orden_real = None
+                    protocolo_detectado = None
                     
-                    # 1. Obtenemos el ID de la orden más reciente o activa
-                    cur.execute("SELECT id FROM ordenes ORDER BY id DESC LIMIT 1")
-                    row_reciente = cur.fetchone()
+                    # 1. RASTREO DEL PROTOCOLO ACTIVO
+                    # Buscamos en las variables de memoria de Streamlit el protocolo que tenés en pantalla
+                    for key, value in st.session_state.items():
+                        if 'protocolo' in key.lower() or 'orden' in key.lower() or 'proto' in key.lower():
+                            if value and isinstance(value, (int, str)):
+                                import re
+                                numeros = re.findall(r'\d+', str(value))
+                                if numeros:
+                                    protocolo_detectado = numeros[0]
+                                    break
                     
-                    if row_reciente:
-                        id_orden_real = row_reciente[0]
-                        
-                        # 2. Traemos todos los IDs de los items que pertenecen a esta orden en la base de datos, ordenados por su ID o visualización
-                        cur.execute("SELECT id FROM resultados_items WHERE orden_id = %s ORDER BY id ASC", (id_orden_real,))
-                        items_db = cur.fetchall()
-                        
-                        # 3. Mapeamos los valores ingresados en pantalla en el mismo orden secuencial
-                        valores_lista = list(valores_temporales.values())
-                        
-                        for idx, row_db in enumerate(items_db):
-                            if idx < len(valores_lista):
-                                item_id_db = row_db[0]
-                                val = valores_lista[idx]
-                                resultado_str = str(val) if val is not None else ""
-                                
-                                # Actualizamos directamente el registro correspondiente por su ID en la base de datos
-                                cur.execute("""
-                                    UPDATE resultados_items 
-                                    SET resultado = %s 
-                                    WHERE id = %s
-                                """, (resultado_str, item_id_db))
-                                
-                                filas_actualizadas += cur.rowcount
+                    # Si no lo detecta en memoria, usamos la última orden registrada como respaldo
+                    if not protocolo_detectado:
+                        cur.execute("SELECT nro_protocolo FROM ordenes ORDER BY id DESC LIMIT 1")
+                        row = cur.fetchone()
+                        if row:
+                            protocolo_detectado = row[0]
+
+                    # 2. OBTENER EL ID INTERNO DE LA ORDEN
+                    if protocolo_detectado:
+                        cur.execute("SELECT id FROM ordenes WHERE nro_protocolo::text = %s", (str(protocolo_detectado),))
+                        row_ord = cur.fetchone()
+                        if row_ord:
+                            id_orden_real = row_ord[0]
+
+                    # 3. ACTUALIZACIÓN UNIVERSAL DE LOS ÍTEMS
+                    if id_orden_real and valores_temporales:
+                        for r_id, val in valores_temporales.items():
+                            resultado_str = str(val) if val is not None else ""
+                            
+                            # Magia acá: Buscamos coincidencia por ID, por código de ítem o por nombre del sub_item
+                            cur.execute("""
+                                UPDATE resultados_items 
+                                SET resultado = %s 
+                                WHERE orden_id = %s 
+                                AND (
+                                    id::text = %s 
+                                    OR codigo_item::text = %s 
+                                    OR sub_item::text = %s
+                                )
+                            """, (resultado_str, id_orden_real, str(r_id), str(r_id), str(r_id)))
+                            
+                            filas_actualizadas += cur.rowcount
                     
                     conn.commit()
                     conn.close()
                     
+                    # 4. RESULTADOS Y DIAGNÓSTICO
                     if filas_actualizadas > 0:
-                        st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
+                        st.success(f"🎉 ¡Resultados guardados con éxito en el Protocolo {protocolo_detectado}! ({filas_actualizadas} ítems actualizados)")
+                        import time
+                        time.sleep(1.5)
                         st.rerun()
                     else:
-                        st.warning("⚠️ No se encontraron ítems vinculados a esta orden en la base de datos.")
+                        st.warning(f"⚠️ El sistema encontró el Protocolo {protocolo_detectado}, pero ningún dato coincidió para guardar.")
+                        # Si falla, esto imprimirá en tu pantalla exactamente qué está intentando enviar Streamlit
+                        st.info("🛠️ Diagnóstico de datos enviados:")
+                        st.write(valores_temporales)
                         
                 except Exception as e:
                     conn.rollback()
