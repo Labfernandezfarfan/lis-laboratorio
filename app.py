@@ -2394,7 +2394,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente Blindado por Protocolo
+             # Botón de Guardar Persistente Blindado y Seguro
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
@@ -2402,28 +2402,34 @@ elif menu == "🧪 Área Analítica (Carga)":
                 try:
                     filas_actualizadas = 0
                     
-                    # Recorremos los valores temporales en pantalla
+                    # 1. Intentamos actualizar de manera directa por el ID de cada ítem en la pantalla
                     for r_id, val in valores_temporales.items():
-                        resultado_str = str(val) if val is not None else ""
-                        
-                        # Actualizamos directamente por el ID del ítem de resultado
-                        cur.execute(
-                            "UPDATE resultados_items SET resultado = %s WHERE id = %s", 
-                            (resultado_str, int(r_id))
-                        )
-                        filas_actualizadas += cur.rowcount
+                        if r_id is not None:
+                            try:
+                                item_id = int(r_id)
+                                resultado_str = str(val) if val is not None else ""
+                                cur.execute(
+                                    "UPDATE resultados_items SET resultado = %s WHERE id = %s", 
+                                    (resultado_str, item_id)
+                                )
+                                filas_actualizadas += cur.rowcount
+                            except (ValueError, TypeError):
+                                continue
                     
-                    # Si por los IDs directos actualizó 0, hacemos un respaldo actualizando por el protocolo activo y el código de ítem
-                    if filas_actualizadas == 0 and 'protocolo_actual_seleccionado' in locals():
+                    # 2. Si el paso anterior no actualizó nada, buscamos por el protocolo cargado actualmente en la interfaz
+                    if filas_actualizadas == 0 and 'protocolo_seleccionado' in locals() and protocolo_seleccionado:
                         for r_id, val in valores_temporales.items():
-                            resultado_str = str(val) if val is not None else ""
-                            cur.execute("""
-                                UPDATE resultados_items ri
-                                SET resultado = %s
-                                FROM ordenes o
-                                WHERE ri.orden_id = o.id AND o.nro_protocolo = %s AND ri.id = %s
-                            """, (resultado_str, protocolo_actual_seleccionado, int(r_id)))
-                            filas_actualizadas += cur.rowcount
+                            try:
+                                resultado_str = str(val) if val is not None else ""
+                                cur.execute("""
+                                    UPDATE resultados_items ri
+                                    SET resultado = %s
+                                    FROM ordenes o
+                                    WHERE ri.orden_id = o.id AND o.nro_protocolo::text = %s AND ri.id = %s
+                                """, (resultado_str, str(protocolo_seleccionado), int(r_id)))
+                                filas_actualizadas += cur.rowcount
+                            except Exception:
+                                pass
 
                     conn.commit()
                     conn.close()
@@ -2432,7 +2438,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                         st.success(f"¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
                         st.rerun()
                     else:
-                        st.warning("⚠️ No se pudieron sincronizar los ítems con este protocolo. Verifique que la orden exista en la base de datos.")
+                        st.warning("⚠️ No se detectaron cambios para guardar o los ítems no están sincronizados con la base de datos.")
                         
                 except Exception as e:
                     conn.rollback()
