@@ -2217,15 +2217,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                             )
                             valores_temporales[clave_segura] = seleccion_resp
                             
-                        else:
-                            st.text_input(
-                                "Resultado", 
-                                value=seleccion_resp, 
-                                key=f"raw_dis_{item_c}_{idx}", 
-                                disabled=True, 
-                                label_visibility="collapsed"
-                            )
-                            valores_temporales[clave_segura] = seleccion_resp
+                        
 
                 with col_u:
                     if unidad:
