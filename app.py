@@ -3799,7 +3799,7 @@ elif menu == "⚙️ Configuración de Análisis":
             st.markdown("##### Textos del Informe:")
             nueva_leyenda = st.text_area("Leyenda Colegio / Matrícula de Autorización (Pie de página):", value=cfg_actual[8])
             if st.form_submit_button("⚙️ Actualizar Texto"):
-                conn = conectar_db(); cur = conn.cursor(); cur.execute("UPDATE configuracion_general SET leyenda_colegio = ? WHERE id = 1", (nueva_leyenda,)); conn.commit(); conn.close(); st.success("Texto pie de página actualizado correctamente."); st.rerun()
+                conn = conectar_db(); cur = conn.cursor(); cur.execute("UPDATE configuracion_general SET leyenda_colegio = %s WHERE id = 1", (nueva_leyenda,)); conn.commit(); conn.close(); st.success("Texto pie de página actualizado correctamente."); st.rerun()
         
         st.markdown("---")
         
