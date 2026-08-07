@@ -2173,14 +2173,20 @@ elif menu == "🧪 Área Analítica (Carga)":
                     with col_sub_manual:
                         clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
                         
-                        # Determinamos si ya tenemos un valor calculado previamente (ej: VCM, FGe, etc.)
+                        # Determinamos si hay un valor calculado exclusivamente para este ítem
                         val_a_mostrar = str(resultado if resultado is not None else "")
-                        if codigo_str in valores_temporales:
-                            val_a_mostrar = valores_temporales[codigo_str]
-                        elif item_c and str(item_c).upper() in valores_temporales:
-                            val_a_mostrar = valores_temporales[str(item_c).upper()]
-                        elif sub_item and str(sub_item).upper() in valores_temporales:
-                            val_a_mostrar = valores_temporales[str(sub_item).upper()]
+                        
+                        # Limpiamos los códigos para comparar con precisión quirúrgica
+                        c_item_clean = str(item_c).strip().upper() if item_c else ""
+                        sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
+                        
+                        if c_item_clean and c_item_clean in valores_temporales:
+                            val_a_mostrar = valores_temporales[c_item_clean]
+                        elif sub_item_clean and sub_item_clean in valores_temporales:
+                            val_a_mostrar = valores_temporales[sub_item_clean]
+                        elif "FGE" in c_item_clean or "FGE" in sub_item_clean:
+                            if "FGe" in valores_temporales:
+                                val_a_mostrar = valores_temporales["FGe"]
 
                         if seleccion_resp == "-- Manual --":
                             val_input = st.text_input(
