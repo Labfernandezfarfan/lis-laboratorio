@@ -2348,19 +2348,24 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception as e:
                 hubo_error_ldl = True
 
-            # FGe CKD-EPI - Cálculo con actualización de estado
+            # FGe CKD-EPI (Movido al final para asegurar lectura de la creatinina ingresada)
             crea_val = mapa_codigos.get("192", {}).get("valor", "")
+            if not crea_val:
+                # Buscamos alternativamente por nombre si el código 192 varía
+                for k, v in mapa_codigos.items():
+                    if 'creatinina' in k.lower():
+                        crea_val = v.get("valor", "")
+                        break
+            
             if crea_val:
                 try:
-                    fge_val = calcular_fge_ckd_epi(crea_val.replace(',', '.'), p_edad, p_sexo)
-                    if "FGE" in mapa_codigos:
-                        c_fge = mapa_codigos["FGE"].get('codigo_item') or "FGE"
-                        # Guardamos en valores temporales
-                        valores_temporales[str(c_fge).strip()] = fge_val
-                        # FORZAMOS LA ACTUALIZACIÓN EN PANTALLA:
-                        # Si tu input se llama 'FGE', esto lo actualiza en el session_state
-                        if "FGE" in st.session_state:
-                            st.session_state["FGE"] = fge_val
+                    fge_val = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), p_edad, p_sexo)
+                    if fge_val:
+                        if "FGE" in mapa_codigos:
+                            c_fge = mapa_codigos["FGE"].get('codigo_item') or "FGE"
+                            valores_temporales[str(c_fge).strip()] = str(fge_val)
+                            if str(c_fge).strip() in st.session_state:
+                                st.session_state[str(c_fge).strip()] = str(fge_val)
                 except Exception:
                     pass
 
