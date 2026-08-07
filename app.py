@@ -2054,60 +2054,90 @@ elif menu == "🧪 Área Analítica (Carga)":
             st.info("Este protocolo se creó vacío.")
         else:
             # -----------------------------------------------------------------
-            # FASE 1: CAPTURA DE VALORES E INTERFAZ GRÁFICA DE RENDERIZADO
+            # FASE 0: PRE-MAPEO Y CÁLCULO ANTICIPADO (MOTOR MATEMÁTICO PRIMERO)
             # -----------------------------------------------------------------
             valores_temporales = {}
             mapa_codigos = {}
             
-            # Función auxiliar interna para traer antecedentes de manera segura
+            # Pre-llenamos el mapa con los valores actuales que están en la base de datos o en la sesión
+            for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
+                if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM':
+                    continue
+                
+                codigo_str = str(item_c).strip().upper() if item_c else str(sub_item).strip().upper()
+                
+                # Buscamos si ya hay algo en session_state, sino usamos el valor de la DB
+                key_input_s = f"val_{orden_id}_{item_c}_{idx}"
+                val_inicial = st.session_state.get(key_input_s, str(resultado) if resultado is not None else "")
+                
+                mapa_codigos[codigo_str] = {
+                    'r_id': r_id,
+                    'valor': str(val_inicial).strip()
+                }
+                if sub_item:
+                    mapa_codigos[str(sub_item).strip().upper()] = {
+                        'r_id': r_id,
+                        'valor': str(val_inicial).strip()
+                    }
+
+            # --- EJECUCIÓN DEL MOTOR MATEMÁTICO ANTES DE RENDERIZAR ---
+            # 1. Hemograma
+            try:
+                gr_val = mapa_codigos.get("GR_01", {}).get("valor", "")
+                ht_val = mapa_codigos.get("HT_02", {}).get("valor", "")
+                hb_val = mapa_codigos.get("HB_03", {}).get("valor", "")
+                gr = float(gr_val.replace(',', '.')) if gr_val else 0
+                ht = float(ht_val.replace(',', '.')) if ht_val else 0
+                hb = float(hb_val.replace(',', '.')) if hb_val else 0
+                
+                if gr > 0 and ht > 0:
+                    valores_temporales["VCM_04"] = str(round((ht * 10) / gr, 1))
+                if gr > 0 and hb > 0:
+                    valores_temporales["HCM_05"] = str(round((hb * 10) / gr, 1))
+                if ht > 0 and hb > 0:
+                    valores_temporales["CHCM_06"] = str(round((hb * 100) / ht, 1))
+            except Exception:
+                pass
+
+            # 2. Filtrado Glomerular (FGe CKD-EPI)
+            try:
+                crea_val = mapa_codigos.get("192", {}).get("valor", "")
+                if crea_val and str(crea_val).replace('.', '', 1).isdigit():
+                    fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), p_edad, p_sexo)
+                    if fge_resultado:
+                        valores_temporales["FGe"] = str(fge_resultado)
+                        valores_temporales["1070"] = str(fge_resultado) # Por si usa código alternativo
+            except Exception:
+                pass
+
+            # -----------------------------------------------------------------
+            # FASE 1: RENDERIZADO VISUAL DE LA INTERFAZ
+            # -----------------------------------------------------------------
             def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=10):
                 if not codigo_item:
                     return []
-
                 conn = conectar_db()
                 cur = conn.cursor()
                 historial = []
-    
                 query = """
-                    SELECT 
-                        o.fecha, 
-                        ri.resultado, 
-                        ri.unidad, 
-                        o.id AS nro_protocolo
+                    SELECT o.fecha, ri.resultado, ri.unidad, o.id AS nro_protocolo
                     FROM resultados_items ri
                     JOIN ordenes o ON ri.orden_id = o.id
                     LEFT JOIN pacientes p ON o.paciente_id = p.id
                     WHERE (o.paciente_id = %s OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s)))
-                      AND (
-                          TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(%s)) 
-                          OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(%s))
-                      )
-                      AND o.id < %s
-                      AND ri.resultado IS NOT NULL 
-                      AND TRIM(CAST(ri.resultado AS TEXT)) != ''
-                    ORDER BY o.id DESC
-                    LIMIT %s
+                      AND (TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(%s)) OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(%s)))
+                      AND o.id < %s AND ri.resultado IS NOT NULL AND TRIM(CAST(ri.resultado AS TEXT)) != ''
+                    ORDER BY o.id DESC LIMIT %s
                 """
-    
                 try:
-                    cur.execute(query, (
-                        paciente_id, 
-                        str(nombre_paciente).strip() if nombre_paciente else "", 
-                        str(codigo_item).strip(), 
-                        str(codigo_item).strip(), 
-                        orden_id_actual, 
-                        limite
-                    ))
+                    cur.execute(query, (paciente_id, str(nombre_paciente).strip() if nombre_paciente else "", str(codigo_item).strip(), str(codigo_item).strip(), orden_id_actual, limite))
                     historial = cur.fetchall()
-                except Exception as e:
-                    print(f"Error al consultar historial: {e}")
+                except Exception:
                     historial = []
                 finally:
                     conn.close()
-    
                 return historial
 
-                        # Cambiá tu bucle actual por este con enumerate(items):
             for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
                 if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
                     st.markdown(f"### 📊 {sub_item.upper()}")
@@ -2116,9 +2146,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                 
                 # BÚSQUEDA DE ANTECEDENTES HISTÓRICOS
                 historial = obtener_historial_paciente_item(pac_id_sel, nombre_paciente_sel, item_c, orden_id, 10)
-                
 
-                # Proporciones equilibradas para mantener todo perfectamente horizontal
                 col_n, col_v, col_u, col_h = st.columns([3, 5, 2, 2])
 
                 with col_n:
@@ -2128,7 +2156,6 @@ elif menu == "🧪 Área Analítica (Carga)":
 
                 with col_v:
                     col_sub_manual, col_sub_combo = st.columns([1, 1])
-                    
                     opciones_combo = ["-- Manual --"] + resp_list
                     
                     index_def = 0
@@ -2140,22 +2167,28 @@ elif menu == "🧪 Área Analítica (Carga)":
                             "Prediseñado",
                             options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{orden_id}_resp_{r_id}_{idx}"  # 👈 Clave 100% única garantizada
+                            key=f"sel_{orden_id}_resp_{r_id}_{idx}"
                         )
                     
                     with col_sub_manual:
-                        # CREAMOS UNA CLAVE 100% SEGURA BASADA EN EL CÓDIGO O NOMBRE DEL ÍTEM
                         clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
                         
+                        # Determinamos si ya tenemos un valor calculado previamente (ej: VCM, FGe, etc.)
+                        val_a_mostrar = str(resultado if resultado is not None else "")
+                        if codigo_str in valores_temporales:
+                            val_a_mostrar = valores_temporales[codigo_str]
+                        elif item_c and str(item_c).upper() in valores_temporales:
+                            val_a_mostrar = valores_temporales[str(item_c).upper()]
+                        elif sub_item and str(sub_item).upper() in valores_temporales:
+                            val_a_mostrar = valores_temporales[str(sub_item).upper()]
+
                         if seleccion_resp == "-- Manual --":
-                            val_actual_str = str(resultado) if resultado is not None else ""
                             val_input = st.text_input(
                                 "Resultado",
-                                value=str(resultado if resultado is not None else ""),
-                                key=f"val_{orden_id}_{item_c}_{idx}",  # Clave única ajustada
+                                value=val_a_mostrar,
+                                key=f"val_{orden_id}_{item_c}_{idx}",
                                 label_visibility="collapsed"
                             )
-                            # Guardamos usando la clave segura en lugar de r_id
                             valores_temporales[clave_segura] = val_input
                         else:
                             st.text_input(
@@ -2165,7 +2198,6 @@ elif menu == "🧪 Área Analítica (Carga)":
                                 disabled=True, 
                                 label_visibility="collapsed"
                             )
-                            # Guardamos usando la clave segura en lugar de r_id
                             valores_temporales[clave_segura] = seleccion_resp
 
                 with col_u:
@@ -2175,52 +2207,23 @@ elif menu == "🧪 Área Analítica (Carga)":
                 with col_h:
                     if historial:
                         html_historial = ""
-
-                        for idx, item_h in enumerate(historial):
+                        for h_idx, item_h in enumerate(historial):
                             f_hist = item_h[0] if len(item_h) > 0 else ""
                             r_hist = item_h[1] if len(item_h) > 1 else ""
                             u_hist = item_h[2] if len(item_h) > 2 else ""
                             prot_h = item_h[3] if len(item_h) > 3 else ""
 
-                            fondo = "#eff6ff" if idx == 0 else ("#ffffff" if idx % 2 == 0 else "#f8fafc")
-                            borde = "#60a5fa" if idx == 0 else "#e2e8f0"
+                            fondo = "#eff6ff" if h_idx == 0 else ("#ffffff" if h_idx % 2 == 0 else "#f8fafc")
+                            borde = "#60a5fa" if h_idx == 0 else "#e2e8f0"
 
                             html_historial += f"""
-                            <div style="
-                                background-color: {fondo};
-                                border: 1px solid {borde};
-                                border-radius: 6px;
-                                padding: 4px 6px;
-                                margin-bottom: 4px;
-                                line-height: 1.1;
-                                font-size: 10px;
-                                color: #0f172a;
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                            ">
+                            <div style="background-color: {fondo}; border: 1px solid {borde}; border-radius: 6px; padding: 4px 6px; margin-bottom: 4px; line-height: 1.1; font-size: 10px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                 <span style="font-size: 8.5px; color: #64748b;">{f_hist} · #{prot_h}</span>
                                 <span style="font-weight: 700; color: #16a34a;"> — {r_hist}</span>
                                 <span style="font-size: 8.5px; color: #475569;"> {u_hist}</span>
                             </div>
                             """
-
-                        st.markdown(
-                            f"""
-                            <div style="
-                                border: 1px solid #cbd5e1;
-                                background-color: #f8fafc;
-                                border-radius: 10px;
-                                padding: 5px;
-                                height: 180px;
-                                overflow-y: auto;
-                                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-                            ">
-                                {html_historial}
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
+                        st.markdown(f"""<div style="border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 10px; padding: 5px; height: 180px; overflow-y: auto; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">{html_historial}</div>""", unsafe_allow_html=True)
                     else:
                         st.caption("Sin historial")
 
