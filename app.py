@@ -2173,9 +2173,11 @@ elif menu == "🧪 Área Analítica (Carga)":
                     with col_sub_manual:
                         clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
                         
-                        # Asignación estricta y limpia por código exacto del ítem
+                        with col_sub_manual:
+                        # 1. Definimos el valor base que viene de la base de datos
                         val_a_mostrar = str(resultado if resultado is not None else "")
                         
+                        # --- PEGAS ESTO EXACTAMENTE AQUÍ ---
                         c_item_clean = str(item_c).strip().upper() if item_c else ""
                         sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
                         
@@ -2188,15 +2190,17 @@ elif menu == "🧪 Área Analítica (Carga)":
                         # Caso especial estricto para el Filtrado Glomerular (evitando que agarre el VCM)
                         if ("FGE" in c_item_clean or "FGE" in sub_item_clean or "1070" in c_item_clean) and "FGe" in valores_temporales:
                             val_a_mostrar = valores_temporales["FGe"]
+                        # --- FIN DE LO QUE PEGAS ---
 
                         if seleccion_resp == "-- Manual --":
                             val_input = st.text_input(
                                 "Resultado",
-                                value=val_a_mostrar,
+                                value=val_a_mostrar,  # <-- Aquí es donde se usa la variable limpia
                                 key=f"val_{orden_id}_{item_c}_{idx}",
                                 label_visibility="collapsed"
                             )
                             valores_temporales[clave_segura] = val_input
+                            
                         else:
                             st.text_input(
                                 "Resultado", 
