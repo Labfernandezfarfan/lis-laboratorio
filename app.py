@@ -2394,35 +2394,50 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
                 st.markdown("---")
 
-             # Botón de Guardar Persistente usando el Protocolo Manual de la Interfaz
+             # Botón de Guardar Persistente - Detección Universal de Protocolo
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
                 
                 try:
                     filas_actualizadas = 0
-                    
-                    # Verificamos qué variable de protocolo tienes activa en la interfaz
-                    # (puede llamarse protocolo_seleccionado, proto_sel o similar según tu script)
                     proto_activo = None
-                    for var_nombre in ['protocolo_seleccionado', 'proto_sel', 'nro_protocolo_actual', 'protocolo_actual']:
+                    
+                    # Buscamos en todas las variables posibles de Streamlit el protocolo activo
+                    for var_nombre in ['protocolo_seleccionado', 'proto_sel', 'nro_protocolo_actual', 'protocolo_actual', 'selected_protocol', 'nro_proto']:
                         if var_nombre in locals() and locals()[var_nombre]:
                             proto_activo = locals()[var_nombre]
                             break
-                    
+                        if var_nombre in st.session_state and st.session_state[var_nombre]:
+                            proto_activo = st.session_state[var_nombre]
+                            break
+
+                    # Si todavía no lo encontró, intentamos extraerlo si el selectbox guarda un texto tipo "1001 - Juan Pérez"
+                    if not proto_activo:
+                        for key, val in st.session_state.items():
+                            if 'protocolo' in key.lower() or 'proto' in key.lower():
+                                if val and (isinstance(val, (int, float)) or str(val).isdigit()):
+                                    proto_activo = val
+                                    break
+                                elif val and isinstance(val, str):
+                                    # Extraemos los números del string (ej: "1001 - Perez" -> 1001)
+                                    import re
+                                    numeros = re.findall(r'\d+', val)
+                                    if numeros:
+                                        proto_activo = numeros[0]
+                                        break
+
                     if proto_activo:
-                        # 1. Buscamos el ID interno real de la orden usando el número de protocolo manual
+                        # 1. Buscamos el ID interno real de la orden en PostgreSQL
                         cur.execute("SELECT id FROM ordenes WHERE nro_protocolo::text = %s", (str(proto_activo),))
                         orden_row = cur.fetchone()
                         
                         if orden_row:
                             id_orden_real = orden_row[0]
                             
-                            # 2. Actualizamos los resultados vinculados a ese ID de orden real
+                            # 2. Actualizamos los resultados asociados a ese ID de orden
                             for r_id, val in valores_temporales.items():
                                 resultado_str = str(val) if val is not None else ""
-                                
-                                # Actualizamos por el id del resultado o por la coincidencia en la orden
                                 cur.execute("""
                                     UPDATE resultados_items 
                                     SET resultado = %s 
@@ -2431,9 +2446,9 @@ elif menu == "🧪 Área Analítica (Carga)":
                                 
                                 filas_actualizadas += cur.rowcount
                         else:
-                            st.error(f"❌ El protocolo N° {proto_activo} no se encontró en la tabla 'ordenes' de la base de datos.")
+                            st.error(f"❌ El protocolo N° {proto_activo} no existe en la tabla 'ordenes'.")
                     else:
-                        st.error("❌ No se pudo identificar el número de protocolo activo en pantalla.")
+                        st.error("❌ No se pudo detectar el protocolo activo. Asegúrese de haber seleccionado un protocolo en la lista superior.")
 
                     conn.commit()
                     conn.close()
@@ -2447,7 +2462,7 @@ elif menu == "🧪 Área Analítica (Carga)":
                 except Exception as e:
                     conn.rollback()
                     conn.close()
-                    st.error(f"Error crítico al guardar por protocolo manual: {e}")
+                    st.error(f"Error crítico al guardar: {e}")
                     
 elif menu == "🖨️ Validación e Informes":
     st.header("🖨️ Impresión y Validación de Informes Bioquímicos")
