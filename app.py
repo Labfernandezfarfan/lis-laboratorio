@@ -1978,7 +1978,7 @@ elif menu == "🧪 Área Analítica (Carga)":
         
         nombre_paciente_sel = None
         estado_orden_sel = None 
-        pac_id_sel = None  # Variable para guardar el ID real del paciente
+        pac_id_sel = None  
 
         for o in todas_ordenes:
             if o[0] == orden_id:
@@ -1986,16 +1986,16 @@ elif menu == "🧪 Área Analítica (Carga)":
                 estado_orden_sel = o[4]
                 break
 
-        # 🚀 EXTRAEMOS PACIENTE_ID, EDAD Y SEXO DESDE LA BASE DE DATOS
-        p_edad = 18   # Por defecto
-        p_sexo = "m"  # Por defecto
+        # Extracción de datos del paciente (edad y sexo)
+        p_edad = 18   
+        p_sexo = "m"  
         try:
             conn_pac = conectar_db(); cur_pac = conn_pac.cursor()
             cur_pac.execute("""
                 SELECT p.id, p.edad, p.sexo 
                 FROM pacientes p 
                 JOIN ordenes o ON o.paciente_id = p.id 
-                WHERE o.id = ?
+                WHERE o.id = %s
             """, (orden_id,))
             pac_data = cur_pac.fetchone()
             if pac_data:
@@ -2019,12 +2019,10 @@ elif menu == "🧪 Área Analítica (Carga)":
             items = cur_items.fetchall()
             conn_items.close()
         except Exception as e:
-            import streamlit as st
             st.error(f"Error al cargar items: {e}")
-            items = []  # Evita que falle la variable si hay un error
+            items = []
         
         try:
-            # Índice 12 corresponde a orden_visual en la tupla de resultados_items
             items = sorted(items, key=lambda x: (int(x[12]) if x[12] is not None else 9999))
         except Exception:
             pass
@@ -2033,7 +2031,7 @@ elif menu == "🧪 Área Analítica (Carga)":
         
         st.markdown("---")
         
-        # 🔐 CONTROL DE SEGURIDAD GENERAL
+        # Control de seguridad de validación
         estado_actual_aa = str(estado_orden_sel).strip().lower()
         es_validado_aa = "validad" in estado_actual_aa or "firmad" in estado_actual_aa or "cerrad" in estado_actual_aa
         
@@ -2041,7 +2039,7 @@ elif menu == "🧪 Área Analítica (Carga)":
             st.error("🛑 **Resultados Bloqueados:** Este protocolo ya se encuentra **VALIDADO**.")
             if st.button("🔓 Desvalidar Protocolo para Editar Resultados", type="secondary", use_container_width=True, key=f"btn_desval_aa_{orden_id}"):
                 conn = conectar_db(); c = conn.cursor()
-                c.execute("UPDATE ordenes SET estado = 'Pendiente' WHERE id = ?", (orden_id,))
+                c.execute("UPDATE ordenes SET estado = 'Pendiente' WHERE id = %s", (orden_id,))
                 conn.commit(); conn.close()
                 st.toast("🔓 Protocolo liberado. Ya puede editar los resultados.", icon="🔓")
                 st.rerun()
@@ -2053,42 +2051,31 @@ elif menu == "🧪 Área Analítica (Carga)":
         if not items: 
             st.info("Este protocolo se creó vacío.")
         else:
-            # -----------------------------------------------------------------
-            # FASE 0: PRE-MAPEO Y CÁLCULO ANTICIPADO (MOTOR MATEMÁTICO PRIMERO)
-            # -----------------------------------------------------------------
             valores_temporales = {}
             mapa_codigos = {}
             
-            # Pre-llenamos el mapa con los valores actuales que están en la base de datos o en la sesión
+            # Recorrido inicial para capturar valores de memoria o base de datos
             for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
-                if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM':
+                if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
                     continue
                 
                 codigo_str = str(item_c).strip().upper() if item_c else str(sub_item).strip().upper()
-                
-                # Buscamos si ya hay algo en session_state, sino usamos el valor de la DB
                 key_input_s = f"val_{orden_id}_{item_c}_{idx}"
                 val_inicial = st.session_state.get(key_input_s, str(resultado) if resultado is not None else "")
                 
-                mapa_codigos[codigo_str] = {
-                    'r_id': r_id,
-                    'valor': str(val_inicial).strip()
-                }
+                mapa_codigos[codigo_str] = {'r_id': r_id, 'valor': str(val_inicial).strip()}
                 if sub_item:
-                    mapa_codigos[str(sub_item).strip().upper()] = {
-                        'r_id': r_id,
-                        'valor': str(val_inicial).strip()
-                    }
+                    mapa_codigos[str(sub_item).strip().upper()] = {'r_id': r_id, 'valor': str(val_inicial).strip()}
 
-            # --- EJECUCIÓN DEL MOTOR MATEMÁTICO ANTES DE RENDERIZAR ---
-            # 1. Hemograma
+            # -----------------------------------------------------------------
+            # MOTORES MATEMÁTICOS AUTOMÁTICOS (Hemograma, FGe y Glucosa Promedio)
+            # -----------------------------------------------------------------
+            
+            # 1. Hemograma (VCM, HCM, CHCM)
             try:
-                gr_val = mapa_codigos.get("GR_01", {}).get("valor", "")
-                ht_val = mapa_codigos.get("HT_02", {}).get("valor", "")
-                hb_val = mapa_codigos.get("HB_03", {}).get("valor", "")
-                gr = float(gr_val.replace(',', '.')) if gr_val else 0
-                ht = float(ht_val.replace(',', '.')) if ht_val else 0
-                hb = float(hb_val.replace(',', '.')) if hb_val else 0
+                gr = float(mapa_codigos.get("GR_01", {}).get("valor", "").replace(',', '.')) or 0
+                ht = float(mapa_codigos.get("HT_02", {}).get("valor", "").replace(',', '.')) or 0
+                hb = float(mapa_codigos.get("HB_03", {}).get("valor", "").replace(',', '.')) or 0
                 
                 if gr > 0 and ht > 0:
                     valores_temporales["VCM_04"] = str(round((ht * 10) / gr, 1))
@@ -2099,19 +2086,36 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception:
                 pass
 
-            # 2. Filtrado Glomerular (FGe CKD-EPI)
+            # 2. Filtrado Glomerular (CKD-EPI)
             try:
                 crea_val = mapa_codigos.get("192", {}).get("valor", "")
                 if crea_val and str(crea_val).replace('.', '', 1).isdigit():
                     fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), p_edad, p_sexo)
                     if fge_resultado:
                         valores_temporales["FGe"] = str(fge_resultado)
-                        valores_temporales["1070"] = str(fge_resultado) # Por si usa código alternativo
+                        valores_temporales["1070"] = str(fge_resultado)
+            except Exception:
+                pass
+
+            # 3. Glucosa Promedio Estimada (GPE) a partir de Hemoglobina Glicosilada
+            try:
+                # Buscamos por código común de Glicosilada (ej: Alc, glicosilada, etc.) o nombre
+                hba1c_val = ""
+                for k, v in mapa_codigos.items():
+                    if "GLICOSILADA" in k or "ALC" in k or "HBA1C" in k:
+                        hba1c_val = v.get("valor", "")
+                        break
+                
+                if hba1c_val:
+                    hba1c_num = float(str(hba1c_val).replace(',', '.'))
+                    # Fórmula estándar de estimación de glucosa promedio: (28.7 * HbA1c) - 46.7
+                    gpe_calc = round((28.7 * hba1c_num) - 46.7, 1)
+                    valores_temporales["GPE"] = str(gpe_calc)
             except Exception:
                 pass
 
             # -----------------------------------------------------------------
-            # FASE 1: RENDERIZADO VISUAL DE LA INTERFAZ
+            # RENDERIZADO DE FILAS Y CONTROLES
             # -----------------------------------------------------------------
             def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=10):
                 if not codigo_item:
@@ -2144,7 +2148,6 @@ elif menu == "🧪 Área Analítica (Carga)":
                     st.markdown("---")
                     continue
                 
-                # BÚSQUEDA DE ANTECEDENTES HISTÓRICOS
                 historial = obtener_historial_paciente_item(pac_id_sel, nombre_paciente_sel, item_c, orden_id, 10)
 
                 col_n, col_v, col_u, col_h = st.columns([3, 5, 2, 2])
@@ -2171,43 +2174,29 @@ elif menu == "🧪 Área Analítica (Carga)":
                         )
                     
                     with col_sub_manual:
-                        # Definimos la clave primero para evitar el NameError
                         clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
-                        
-                        # 1. Valor base
                         val_a_mostrar = str(resultado if resultado is not None else "")
                         
-                        # 2. Lógica para el cálculo de FGe
-                        # Lógica para el cálculo de FGe (Solo para la Creatinina)
                         c_item_clean = str(item_c).strip().upper() if item_c else ""
                         sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
                         
-                        if c_item_clean == "192" or "CREATININA" in sub_item_clean:
-                            try:
-                                v_num = float(str(val_input).replace(',', '.')) if 'val_input' in locals() else float(str(resultado).replace(',', '.'))
-                                if v_num > 0:
-                                    res_fge = calcular_fge_ckd_epi(str(v_num), p_edad, p_sexo)
-                                    # LO IMPORTANTE: Guardamos directo en el diccionario que usa el sistema
-                                    valores_temporales["FGe"] = res_fge
-                                    st.session_state[f"fge_val_{orden_id}"] = res_fge
-                            except: pass
+                        # Inyección de valores calculados (FGe, GPE o Hemograma)
+                        if c_item_clean in valores_temporales:
+                            val_a_mostrar = valores_temporales[c_item_clean]
+                        elif sub_item_clean in valores_temporales:
+                            val_a_mostrar = valores_temporales[sub_item_clean]
+                        elif ("FGE" in c_item_clean or "FILTRADO" in sub_item_clean or c_item_clean == "1070") and "FGe" in valores_temporales:
+                            val_a_mostrar = valores_temporales["FGe"]
+                        elif "GLUCOSA" in sub_item_clean or "PROMEDIO" in sub_item_clean or "GPE" in c_item_clean:
+                            if "GPE" in valores_temporales:
+                                val_a_mostrar = valores_temporales["GPE"]
 
-                        # Aseguramos que la fila de Filtrado Glomerular tome el valor calculado
-                        if ("FGE" in c_item_clean or "FILTRADO" in sub_item_clean or c_item_clean == "1070"):
-                            if "FGe" in valores_temporales and valores_temporales["FGe"]:
-                                val_a_mostrar = valores_temporales["FGe"]
-                            elif f"fge_val_{orden_id}" in st.session_state:
-                                val_a_mostrar = st.session_state[f"fge_val_{orden_id}"]
-
-                        # 4. Input final
                         if seleccion_resp == "-- Manual --":
                             val_input = st.text_input("Resultado", value=val_a_mostrar, key=f"val_{orden_id}_{item_c}_{idx}", label_visibility="collapsed")
                             valores_temporales[clave_segura] = val_input
                         else:
                             st.text_input("Resultado", value=seleccion_resp, key=f"raw_dis_{item_c}_{idx}", disabled=True, label_visibility="collapsed")
                             valores_temporales[clave_segura] = seleccion_resp
-                            
-                        
 
                 with col_u:
                     if unidad:
@@ -2236,283 +2225,40 @@ elif menu == "🧪 Área Analítica (Carga)":
                     else:
                         st.caption("Sin historial")
 
-
-
-
-
-
-
-
-
-                # Alimentamos el mapa de códigos en tiempo real usando el código del ítem como clave
-                codigo_str = str(item_c).strip().upper() if item_c else str(sub_item).strip().upper()
-                
-                # Obtenemos el valor actual ingresado usando la misma clave segura
-                val_actual_en_memoria = valores_temporales.get(codigo_str, str(resultado) if resultado is not None else "")
-                
-                mapa_codigos[codigo_str] = {
-                    'r_id': r_id,
-                    'valor': str(val_actual_en_memoria).strip()
-                }
-                
-                # Opcional: si tu sistema busca también por el nombre del sub_item en las fórmulas
-                if sub_item:
-                    mapa_codigos[str(sub_item).strip().upper()] = {
-                        'r_id': r_id,
-                        'valor': str(val_actual_en_memoria).strip()
-                    }
-
             # -----------------------------------------------------------------
-            # FASE 2: MOTOR DE PROCESAMIENTO MATEMÁTICO (FÓRMULAS) - ADAPTADO
+            # BOTÓN DE GUARDADO SEGURO
             # -----------------------------------------------------------------
-            hubo_error_ldl = False
-            
-            # Hemograma
-            gr_val = mapa_codigos.get("GR_01", {}).get("valor", "")
-            ht_val = mapa_codigos.get("HT_02", {}).get("valor", "")
-            hb_val = mapa_codigos.get("HB_03", {}).get("valor", "")
-            try:
-                gr = float(gr_val.replace(',', '.')) if gr_val else 0
-                ht = float(ht_val.replace(',', '.')) if ht_val else 0
-                hb = float(hb_val.replace(',', '.')) if hb_val else 0
-                
-                if gr > 0 and ht > 0 and "VCM_04" in mapa_codigos:
-                    clave_vcm = mapa_codigos["VCM_04"].get('codigo_item') or "VCM_04"
-                    valores_temporales[str(clave_vcm).strip()] = str(round((ht * 10) / gr, 1))
-                if gr > 0 and hb > 0 and "HCM_05" in mapa_codigos:
-                    clave_hcm = mapa_codigos["HCM_05"].get('codigo_item') or "HCM_05"
-                    valores_temporales[str(clave_hcm).strip()] = str(round((hb * 10) / gr, 1))
-                if ht > 0 and hb > 0 and "CHCM_06" in mapa_codigos:
-                    clave_chcm = mapa_codigos["CHCM_06"].get('codigo_item') or "CHCM_06"
-                    valores_temporales[str(clave_chcm).strip()] = str(round((hb * 100) / ht, 1))
-            except ValueError:
-                pass
-
-            # Perfil Lipídico
-            col_val = mapa_codigos.get("174", {}).get("valor", "")
-            hdl_val = mapa_codigos.get("1035", {}).get("valor", "")
-            tg_val = mapa_codigos.get("876", {}).get("valor", "")
-            try:
-                ct = float(col_val.replace(',', '.')) if col_val else 0
-                hdl = float(hdl_val.replace(',', '.')) if hdl_val else 0
-                tg = float(tg_val.replace(',', '.')) if tg_val else 0
-
-                if ct > 0 and hdl > 0:
-                    non_hdl = round(ct - hdl, 0)
-                    if "CNOH" in mapa_codigos:
-                        c_cnoh = mapa_codigos["CNOH"].get('codigo_item') or "CNOH"
-                        valores_temporales[str(c_cnoh).strip()] = str(int(non_hdl))
-                    
-                    relacion_ch = round(ct / hdl, 1)
-                    if "C/H" in mapa_codigos:
-                        c_ch = mapa_codigos["C/H"].get('codigo_item') or "C/H"
-                        valores_temporales[str(c_ch).strip()] = str(relacion_ch)
-                    if "IA" in mapa_codigos:
-                        c_ia = mapa_codigos["IA"].get('codigo_item') or "IA"
-                        valores_temporales[str(c_ia).strip()] = str(relacion_ch)
-
-                    if tg > 0:
-                        if non_hdl <= 0:
-                            st.error("⚠️ Cálculo de LDL falló: El colesterol No-HDL da un valor menor o igual a cero.")
-                            hubo_error_ldl = True
-                        elif tg < 9 or tg > 400:
-                            st.error("⚠️ Cálculo de LDL falló: Los triglicéridos deben estar entre 9 y 400 mg/dL para Johns Hopkins.")
-                            hubo_error_ldl = True
-                        else:
-                            col_idx = 0
-                            if non_hdl < 100: col_idx = 0
-                            elif non_hdl <= 129: col_idx = 1
-                            elif non_hdl <= 159: col_idx = 2
-                            elif non_hdl <= 189: col_idx = 3
-                            elif non_hdl <= 218: col_idx = 4
-                            else: col_idx = 5
-
-                            intervalos_tg = [
-                                (9, 49), (50, 56), (57, 63), (64, 70), (71, 77), (78, 84), (85, 91),
-                                (92, 98), (99, 105), (106, 112), (113, 120), (121, 128), (129, 137),
-                                (138, 147), (148, 158), (159, 170), (171, 184), (185, 201), (202, 222),
-                                (223, 252), (253, 298), (299, 400)
-                            ]
-                            matriz_factores = [
-                                [3.3, 3.1, 3.1, 3.1, 3.1, 3.1], [3.9, 3.7, 3.5, 3.5, 3.5, 3.5],
-                                [4.2, 4.0, 3.9, 3.8, 3.8, 3.8], [4.5, 4.3, 4.1, 4.0, 4.0, 4.0],
-                                [4.8, 4.5, 4.4, 4.3, 4.2, 4.2], [5.1, 4.8, 4.6, 4.5, 4.4, 4.4],
-                                [5.3, 5.0, 4.8, 4.7, 4.6, 4.6], [5.6, 5.3, 5.0, 4.9, 4.8, 4.8],
-                                [5.8, 5.5, 5.2, 5.1, 5.0, 5.0], [6.2, 5.7, 5.5, 5.3, 5.2, 5.2],
-                                [6.4, 6.0, 5.7, 5.5, 5.4, 5.4], [6.7, 6.2, 5.9, 5.8, 5.6, 5.6],
-                                [7.0, 6.5, 6.2, 6.0, 5.8, 5.8], [7.3, 6.8, 6.4, 6.2, 6.1, 6.1],
-                                [7.7, 7.1, 6.8, 6.5, 6.4, 6.4], [8.1, 7.5, 7.1, 6.9, 6.7, 6.7],
-                                [8.6, 7.9, 7.5, 7.2, 7.0, 7.0], [9.1, 8.4, 7.9, 7.6, 7.4, 7.4],
-                                [9.7, 9.0, 8.5, 8.1, 7.9, 7.9], [10.5, 9.6, 9.1, 8.7, 8.5, 8.5],
-                                [11.7, 10.6, 9.9, 9.5, 9.2, 9.2], [11.9, 11.9, 11.3, 10.8, 10.4, 10.4]
-                            ]
-                            fila_idx = None
-                            for i, (min_tg, max_tg) in enumerate(intervalos_tg):
-                                if min_tg <= tg <= max_tg:
-                                    fila_idx = i
-                                    break
-                            if fila_idx is not None:
-                                factor = matriz_factores[fila_idx][col_idx]
-                                ldl_calc = round(non_hdl - (tg / factor), 0)
-                                if "1040" in mapa_codigos:
-                                    c_ldl = mapa_codigos["1040"].get('codigo_item') or "1040"
-                                    valores_temporales[str(c_ldl).strip()] = str(int(ldl_calc))
-            except Exception as e:
-                hubo_error_ldl = True
-                
-            # FGe CKD-EPI - Actualización Universal e Informes
-            crea_val = mapa_codigos.get("192", {}).get("valor", "")
-            
-            if crea_val and str(crea_val).replace('.', '', 1).isdigit():
-                try:
-                    fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), edad_calc, sexo_calc)
-                    
-                    if fge_resultado:
-                        # 1. Actualizamos todas las claves de sesión que correspondan al FGe
-                        for session_key in list(st.session_state.keys()):
-                            if "FGe" in session_key or "fge" in session_key:
-                                valores_temporales[session_key] = str(fge_resultado)
-                                st.session_state[session_key] = str(fge_resultado)
-                        
-                        # 2. Aseguramos que el mapa de códigos también lo tenga disponible para la vista de informe
-                        mapa_codigos["FGE"] = {
-                            'valor': str(fge_resultado),
-                            'codigo_item': "FGE"
-                        }
-                except Exception:
-                    pass
-
-            # Fórmulas Dinámicas Personalizadas
-            for r_id_f, _, item_c_f, _, _, _, _, _, formula_f, _, _, _, _, _ in items:
-                if formula_f and str(formula_f).strip():
-                    expr_evaluable = str(formula_f).strip().upper()
-                    # ... [tu código de reemplazo de variables sigue igual] ...
-                    
-                    if hubo_reemplazo and not error_conversion:
-                        try:
-                            safe_dict = {"__builtins__": None, "abs": abs, "round": round, "min": min, "max": max}
-                            calculo_final = round(eval(expr_evaluable, safe_dict), 2)
-                            if isinstance(calculo_final, float) and calculo_final.is_integer():
-                                calculo_final = int(calculo_final)
-                            
-                            clave_formula = str(item_c_f).strip() if item_c_f else str(r_id_f)
-                            valores_temporales[clave_formula] = str(calculo_final)
-                            
-                            # ACTUALIZACIÓN EN PANTALLA PARA FÓRMULAS DINÁMICAS:
-                            if clave_formula in st.session_state:
-                                st.session_state[clave_formula] = str(calculo_final)
-                                
-                        except Exception:
-                            pass
-
-            # -----------------------------------------------------------------
-            # FASE 3: INTERFAZ DE IMAGEN (PROTEINOGRAMA) Y BOTÓN GUARDAR
-            # -----------------------------------------------------------------
-            tiene_pxe = any(str(item[2]).strip() == "764" for item in items)
-            archivo_grafico = None
-            eliminar_img = False
-            r_id_pxe = None
-
-            if tiene_pxe:
-                st.markdown("---")
-                st.markdown("### 📈 Gráfico de Corrida Electroforética (Código 764)")
-                imagen_guardada = None
-                
-                for item in items:
-                    if str(item[2]).strip() == "764":
-                        r_id_pxe = item[0]
-                        break
-                
-                if r_id_pxe:
-                    try:
-                        conn_img = conectar_db(); cur_img = conn_img.cursor()
-                        cur_img.execute("SELECT pxe_grafico FROM resultados_items WHERE id = %s AND pxe_grafico IS NOT NULL", (r_id_pxe,))
-                        row = cur_img.fetchone()
-                        if row: imagen_guardada = row[0]
-                        conn_img.close()
-                    except Exception:
-                        pass
-                
-                if imagen_guardada:
-                    st.image(imagen_guardada, caption="Corrida electroforética actual guardada", width=350)
-                    eliminar_img = st.checkbox("🗑️ Marcar para eliminar o reemplazar la imagen actual", key="del_pxe_actual")
-                else:
-                    st.info("ℹ️ Aún no se ha subido el gráfico de la corrida para este paciente.")
-                
-                archivo_grafico = st.file_uploader("Subir imagen de la corrida (.png, .jpg, .jpeg):", type=["png", "jpg", "jpeg"], key="uploader_pxe_corrida")
-                if archivo_grafico is not None:
-                    st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
-                st.markdown("---")
-
-             # Botón de Guardar Persistente - Sincronización Universal y Diagnóstico
             if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
                 conn = conectar_db()
                 cur = conn.cursor()
                 
                 try:
                     filas_actualizadas = 0
-                    id_orden_real = None
-                    protocolo_detectado = None
-                    
-                    # 1. RASTREO DEL PROTOCOLO ACTIVO
-                    # Buscamos en las variables de memoria de Streamlit el protocolo que tenés en pantalla
-                    for key, value in st.session_state.items():
-                        if 'protocolo' in key.lower() or 'orden' in key.lower() or 'proto' in key.lower():
-                            if value and isinstance(value, (int, str)):
-                                import re
-                                numeros = re.findall(r'\d+', str(value))
-                                if numeros:
-                                    protocolo_detectado = numeros[0]
-                                    break
-                    
-                    # Si no lo detecta en memoria, usamos la última orden registrada como respaldo
-                    if not protocolo_detectado:
-                        cur.execute("SELECT nro_protocolo FROM ordenes ORDER BY id DESC LIMIT 1")
-                        row = cur.fetchone()
-                        if row:
-                            protocolo_detectado = row[0]
-
-                    # 2. OBTENER EL ID INTERNO DE LA ORDEN
-                    if protocolo_detectado:
-                        cur.execute("SELECT id FROM ordenes WHERE nro_protocolo::text = %s", (str(protocolo_detectado),))
-                        row_ord = cur.fetchone()
-                        if row_ord:
-                            id_orden_real = row_ord[0]
-
-                    # 3. ACTUALIZACIÓN UNIVERSAL DE LOS ÍTEMS
-                    if id_orden_real and valores_temporales:
-                        for r_id, val in valores_temporales.items():
-                            resultado_str = str(val) if val is not None else ""
-                            
-                            # Magia acá: Buscamos coincidencia por ID, por código de ítem o por nombre del sub_item
-                            cur.execute("""
-                                UPDATE resultados_items 
-                                SET resultado = %s 
-                                WHERE orden_id = %s 
-                                AND (
-                                    id::text = %s 
-                                    OR codigo_item::text = %s 
-                                    OR sub_item::text = %s
-                                )
-                            """, (resultado_str, id_orden_real, str(r_id), str(r_id), str(r_id)))
-                            
-                            filas_actualizadas += cur.rowcount
-                    
+                    for r_id_item, val in valores_temporales.items():
+                        resultado_str = str(val) if val is not None else ""
+                        
+                        # Actualización precisa usando el ID del registro o el código de ítem
+                        cur.execute("""
+                            UPDATE resultados_items 
+                            SET resultado = %s 
+                            WHERE orden_id = %s 
+                            AND (
+                                id::text = %s 
+                                OR codigo_item::text = %s 
+                                OR sub_item::text = %s
+                            )
+                        """, (resultado_str, orden_id, str(r_id_item), str(r_id_item), str(r_id_item)))
+                        
+                        filas_actualizadas += cur.rowcount
+                        
                     conn.commit()
                     conn.close()
                     
-                    # 4. RESULTADOS Y DIAGNÓSTICO
-                    if filas_actualizadas > 0:
-                        st.success(f"🎉 ¡Resultados guardados con éxito en el Protocolo {protocolo_detectado}! ({filas_actualizadas} ítems actualizados)")
-                        import time
-                        time.sleep(1.5)
-                        st.rerun()
-                    else:
-                        st.warning(f"⚠️ El sistema encontró el Protocolo {protocolo_detectado}, pero ningún dato coincidió para guardar.")
-                        # Si falla, esto imprimirá en tu pantalla exactamente qué está intentando enviar Streamlit
-                        st.info("🛠️ Diagnóstico de datos enviados:")
-                        st.write(valores_temporales)
-                        
+                    st.success(f"🎉 ¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
+                    import time
+                    time.sleep(1.2)
+                    st.rerun()
+                    
                 except Exception as e:
                     conn.rollback()
                     conn.close()
