@@ -2171,16 +2171,17 @@ elif menu == "🧪 Área Analítica (Carga)":
                         )
                     
                     with col_sub_manual:
-                        # 1. Definimos el valor base
+                        # Definimos la clave primero para evitar el NameError
+                        clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
+                        
+                        # 1. Valor base
                         val_a_mostrar = str(resultado if resultado is not None else "")
                         
-                        # 2. Lógica para el cálculo de FGe (Solo para la Creatinina)
+                        # 2. Lógica para el cálculo de FGe
                         c_item_clean = str(item_c).strip().upper() if item_c else ""
                         sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
                         
-                        # Si es Creatinina, calculamos y guardamos en session_state
                         if c_item_clean == "192" or "CREATININA" in sub_item_clean:
-                            # Capturamos el valor actual del input si el usuario ya escribió algo
                             try:
                                 v_num = float(str(resultado).replace(',', '.')) if resultado else 0.0
                                 if v_num > 0:
@@ -2188,35 +2189,20 @@ elif menu == "🧪 Área Analítica (Carga)":
                                     st.session_state[f"fge_val_{orden_id}"] = res_fge
                             except: pass
 
-                        # 3. Determinamos qué mostrar
-                        # Si el ítem es FGe, leemos lo que guardamos arriba
+                        # 3. Asignación del valor
                         if ("FGE" in c_item_clean or "FILTRADO" in sub_item_clean or c_item_clean == "1070"):
                             val_a_mostrar = st.session_state.get(f"fge_val_{orden_id}", val_a_mostrar)
-                        # Si es otro ítem, mantenemos el valor original (o el de valores_temporales)
                         elif c_item_clean in valores_temporales:
                             val_a_mostrar = valores_temporales[c_item_clean]
                         elif sub_item_clean in valores_temporales:
                             val_a_mostrar = valores_temporales[sub_item_clean]
 
-                        # 4. Dibujamos el input
-                        clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
-
+                        # 4. Input final
                         if seleccion_resp == "-- Manual --":
-                            val_input = st.text_input(
-                                "Resultado",
-                                value=val_a_mostrar,
-                                key=f"val_{orden_id}_{item_c}_{idx}",
-                                label_visibility="collapsed"
-                            )
+                            val_input = st.text_input("Resultado", value=val_a_mostrar, key=f"val_{orden_id}_{item_c}_{idx}", label_visibility="collapsed")
                             valores_temporales[clave_segura] = val_input
                         else:
-                            st.text_input(
-                                "Resultado", 
-                                value=seleccion_resp, 
-                                key=f"raw_dis_{item_c}_{idx}", 
-                                disabled=True, 
-                                label_visibility="collapsed"
-                            )
+                            st.text_input("Resultado", value=seleccion_resp, key=f"raw_dis_{item_c}_{idx}", disabled=True, label_visibility="collapsed")
                             valores_temporales[clave_segura] = seleccion_resp
                             
                         
