@@ -2243,7 +2243,7 @@ elif menu == "🧪 Área Analítica (Carga)":
             st.markdown("<br>", unsafe_allow_html=True)
 
             # -----------------------------------------------------------------
-            # FASE 2: MOTOR DE PROCESAMIENTO MATEMÁTICO (FÓRMULAS)
+            # FASE 2: MOTOR DE PROCESAMIENTO MATEMÁTICO (FÓRMULAS) - ADAPTADO
             # -----------------------------------------------------------------
             hubo_error_ldl = False
             
@@ -2257,11 +2257,14 @@ elif menu == "🧪 Área Analítica (Carga)":
                 hb = float(hb_val.replace(',', '.')) if hb_val else 0
                 
                 if gr > 0 and ht > 0 and "VCM_04" in mapa_codigos:
-                    valores_temporales[mapa_codigos["VCM_04"]['r_id']] = str(round((ht * 10) / gr, 1))
+                    clave_vcm = mapa_codigos["VCM_04"].get('codigo_item') or "VCM_04"
+                    valores_temporales[str(clave_vcm).strip()] = str(round((ht * 10) / gr, 1))
                 if gr > 0 and hb > 0 and "HCM_05" in mapa_codigos:
-                    valores_temporales[mapa_codigos["HCM_05"]['r_id']] = str(round((hb * 10) / gr, 1))
+                    clave_hcm = mapa_codigos["HCM_05"].get('codigo_item') or "HCM_05"
+                    valores_temporales[str(clave_hcm).strip()] = str(round((hb * 10) / gr, 1))
                 if ht > 0 and hb > 0 and "CHCM_06" in mapa_codigos:
-                    valores_temporales[mapa_codigos["CHCM_06"]['r_id']] = str(round((hb * 100) / ht, 1))
+                    clave_chcm = mapa_codigos["CHCM_06"].get('codigo_item') or "CHCM_06"
+                    valores_temporales[str(clave_chcm).strip()] = str(round((hb * 100) / ht, 1))
             except ValueError:
                 pass
 
@@ -2276,10 +2279,17 @@ elif menu == "🧪 Área Analítica (Carga)":
 
                 if ct > 0 and hdl > 0:
                     non_hdl = round(ct - hdl, 0)
-                    if "CNOH" in mapa_codigos: valores_temporales[mapa_codigos["CNOH"]['r_id']] = str(int(non_hdl))
+                    if "CNOH" in mapa_codigos:
+                        c_cnoh = mapa_codigos["CNOH"].get('codigo_item') or "CNOH"
+                        valores_temporales[str(c_cnoh).strip()] = str(int(non_hdl))
+                    
                     relacion_ch = round(ct / hdl, 1)
-                    if "C/H" in mapa_codigos: valores_temporales[mapa_codigos["C/H"]['r_id']] = str(relacion_ch)
-                    if "IA" in mapa_codigos: valores_temporales[mapa_codigos["IA"]['r_id']] = str(relacion_ch)
+                    if "C/H" in mapa_codigos:
+                        c_ch = mapa_codigos["C/H"].get('codigo_item') or "C/H"
+                        valores_temporales[str(c_ch).strip()] = str(relacion_ch)
+                    if "IA" in mapa_codigos:
+                        c_ia = mapa_codigos["IA"].get('codigo_item') or "IA"
+                        valores_temporales[str(c_ia).strip()] = str(relacion_ch)
 
                     if tg > 0:
                         if non_hdl <= 0:
@@ -2325,7 +2335,8 @@ elif menu == "🧪 Área Analítica (Carga)":
                                 factor = matriz_factores[fila_idx][col_idx]
                                 ldl_calc = round(non_hdl - (tg / factor), 0)
                                 if "1040" in mapa_codigos:
-                                    valores_temporales[mapa_codigos["1040"]['r_id']] = str(int(ldl_calc))
+                                    c_ldl = mapa_codigos["1040"].get('codigo_item') or "1040"
+                                    valores_temporales[str(c_ldl).strip()] = str(int(ldl_calc))
             except Exception as e:
                 hubo_error_ldl = True
 
@@ -2333,7 +2344,9 @@ elif menu == "🧪 Área Analítica (Carga)":
             crea_val = mapa_codigos.get("192", {}).get("valor", "")
             if crea_val:
                 fge_val = calcular_fge_ckd_epi(crea_val.replace(',', '.'), p_edad, p_sexo)
-                if "FGE" in mapa_codigos: valores_temporales[mapa_codigos["FGE"]['r_id']] = fge_val
+                if "FGE" in mapa_codigos:
+                    c_fge = mapa_codigos["FGE"].get('codigo_item') or "FGE"
+                    valores_temporales[str(c_fge).strip()] = fge_val
 
             # Fórmulas Dinámicas Personalizadas
             for r_id_f, _, item_c_f, _, _, _, _, _, formula_f, _, _, _, _, _ in items:
@@ -2360,9 +2373,12 @@ elif menu == "🧪 Área Analítica (Carga)":
                             calculo_final = round(eval(expr_evaluable, safe_dict), 2)
                             if isinstance(calculo_final, float) and calculo_final.is_integer():
                                 calculo_final = int(calculo_final)
-                            valores_temporales[r_id_f] = str(calculo_final)
+                            # Usamos el código del ítem como clave segura en lugar de r_id_f
+                            clave_formula = str(item_c_f).strip() if item_c_f else str(r_id_f)
+                            valores_temporales[clave_formula] = str(calculo_final)
                         except ZeroDivisionError:
-                            valores_temporales[r_id_f] = ""
+                            clave_formula = str(item_c_f).strip() if item_c_f else str(r_id_f)
+                            valores_temporales[clave_formula] = ""
                         except Exception:
                             pass
 
