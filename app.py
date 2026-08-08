@@ -1909,7 +1909,7 @@ elif menu == "✏️ Modificar Protocolos":
                 c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
                 
                 # 2. Reinyectamos las prácticas usando el índice estricto de la lista
-                for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
+                for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
                     orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
                     sub_items = obtener_sub_items_de_practica(perf_id)
                     val_part_int = 1 if es_particular_bool else 0
