@@ -2189,15 +2189,16 @@ elif menu == "🧪 Área Analítica (Carga)":
                     if historial:
                         html_historial = ""
 
-                        for idx, item_h in enumerate(historial):
+                        # Cambiamos 'idx' por 'h_idx' para que no choque con el bucle principal de los ítems
+                        for h_idx, item_h in enumerate(historial):
                             f_hist = item_h[0] if len(item_h) > 0 else ""
                             r_hist = item_h[1] if len(item_h) > 1 else ""
                             u_hist = item_h[2] if len(item_h) > 2 else ""
                             prot_h = item_h[3] if len(item_h) > 3 else ""
-
-                            fondo = "#eff6ff" if idx == 0 else ("#ffffff" if idx % 2 == 0 else "#f8fafc")
-                            borde = "#60a5fa" if idx == 0 else "#e2e8f0"
-
+                        
+                            fondo = "#eff6ff" if h_idx == 0 else ("#ffffff" if h_idx % 2 == 0 else "#f8fafc")
+                            borde = "#60a5fa" if h_idx == 0 else "#e2e8f0"
+                        
                             html_historial += f"""
                             <div style="
                                 background-color: {fondo};
@@ -2217,21 +2218,9 @@ elif menu == "🧪 Área Analítica (Carga)":
                                 <span style="font-size: 8.5px; color: #475569;"> {u_hist}</span>
                             </div>
                             """
-
+                        
                         st.markdown(
-                            f"""
-                            <div style="
-                                border: 1px solid #cbd5e1;
-                                background-color: #f8fafc;
-                                border-radius: 10px;
-                                padding: 5px;
-                                height: 180px;
-                                overflow-y: auto;
-                                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-                            ">
-                                {html_historial}
-                            </div>
-                            """,
+                            f"""<div style="border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 10px; padding: 5px; height: 180px; overflow-y: auto; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">{html_historial}</div>""", 
                             unsafe_allow_html=True
                         )
                     else:
