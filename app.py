@@ -2022,10 +2022,8 @@ elif menu == "🧪 Área Analítica (Carga)":
             st.error(f"Error al cargar items: {e}")
             items = []
         
-        try:
-            items = sorted(items, key=lambda x: (int(x[12]) if x[12] is not None else 9999))
-        except Exception:
-            pass
+        # ELIMINAMOS EL SORTED DE AQUÍ PARA QUE RESPETE 
+        # EXACTAMENTE EL ORDEN NATURAL DE LA BASE DE DATOS
 
         resp_list = [r[1] for r in listar_respuestas_fijas()]
         
