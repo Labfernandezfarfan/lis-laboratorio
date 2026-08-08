@@ -632,8 +632,7 @@ def obtener_configuracion_general():
 
 def listar_nomenclador():
     conn = conectar_db(); c = conn.cursor()
-    # Usamos DISTINCT para que nunca se repita ninguna práctica en el buscador
-    c.execute("SELECT DISTINCT codigo, nombre, unidades_bioquimicas FROM nomenclador ORDER BY codigo ASC")
+    c.execute("SELECT codigo, nombre, unidades_bioquimicas FROM nomenclador ORDER BY codigo ASC")
     res = c.fetchall(); conn.close(); return res
 
 def listar_todas_determinaciones():
@@ -811,84 +810,29 @@ def agregar_perfil_a_orden_existente(orden_id, cod_p):
     conn.close()
 
 def registrar_orden(proto_manual, paciente_id, medico_id, os_id, b_id, tipo_p, nro_ord_int, lista_perfiles, fecha_manual=None):
-    conn = conectar_db()
-    c = conn.cursor()
+    conn = conectar_db(); c = conn.cursor()
     
+    # Si viene una fecha manual la usa, de lo contrario cae en la de hoy por defecto
     if fecha_manual:
         fecha_actual = fecha_manual
     else:
         fecha_actual = datetime.now().strftime("%d/%m/%Y")
         
-    # Generamos un número de protocolo único basado en el tiempo
-    nro_proto = int(datetime.now().strftime("%m%d%H%M%S")) % 1000000
-    if nro_proto < 1000:
-        nro_proto += 1000
+    if proto_manual:
+        nro_proto = proto_manual
+    else:
+        c.execute("SELECT MAX(nro_protocolo) FROM ordenes")
+        max_proto = c.fetchone()[0]
+        nro_proto = 1001 if not max_proto else max_proto + 1
         
     try:
-        # Usamos RETURNING id para obtener el ID recién creado de forma segura en PostgreSQL
         c.execute("""
             INSERT INTO ordenes (nro_protocolo, paciente_id, fecha, medico_id, obra_social_id, total_pesos, estado, bioquimico_firma_id, tipo_paciente, nro_orden_internacion) 
             VALUES (%s, %s, %s, %s, %s, 0.0, 'Pendiente', %s, %s, %s)
-            RETURNING id
         """, (nro_proto, paciente_id, fecha_actual, medico_id, os_id, b_id, tipo_p, nro_ord_int))
-        
-        res_id = c.fetchone()
-        orden_id = res_id[0] if res_id else None
-            
-    except Exception as e:
-        conn.rollback()
-        conn.close()
-        print(f"Error detallado al registrar orden: {e}")
-        return None
-        
-    if not orden_id:
-        conn.rollback()
-        conn.close()
-        return None
-
-    for cod_p in lista_perfiles:
-        sub_items = obtener_sub_items_de_practica(cod_p)
-        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-            c.execute("""
-                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
-            
-    conn.commit()
-    conn.close()
-    return orden_id
-        
-    for cod_p in lista_perfiles:
-        sub_items = obtener_sub_items_de_practica(cod_p)
-        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-            c.execute("""
-                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
-            
-    conn.commit()
-    conn.close()
-    return orden_id
-        
-    for cod_p in lista_perfiles:
-        sub_items = obtener_sub_items_de_practica(cod_p)
-        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-            c.execute("""
-                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
-            
-    conn.commit(); conn.close(); return orden_id
-        
-    for cod_p in lista_perfiles:
-        sub_items = obtener_sub_items_de_practica(cod_p)
-        for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
-            c.execute("""
-                INSERT INTO resultados_items (orden_id, codigo_perfil, codigo_item, sub_item, resultado, unidad, valores_referencia, es_titulo, formula, orden_visual, metodo, en_negrita, ub_facturacion) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (orden_id, cod_p, c_item, s_nombre, '', s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac))
-            
-    conn.commit(); conn.close(); return orden_id
+        orden_id = c.lastrowid
+    except sqlite3.IntegrityError:
+        conn.close(); return None
         
     for cod_p in lista_perfiles:
         sub_items = obtener_sub_items_de_practica(cod_p)
@@ -1509,55 +1453,67 @@ elif menu == "🛒 Carga de Protocolos":
             st.markdown("---")
 
             # ===================================================
-            # INTERFAZ CON REORDENAMIENTO Y TILDE PARTICULAR (ESTILO MODIFICAR)
+            # INTERFAZ CON REORDENAMIENTO Y TILDE PARTICULAR
             # ===================================================
             if st.session_state.perfiles_seleccionados:
-                st.write("📋 **Perfiles incluidos en la orden actual:**")
+                col_lista, col_botones = st.columns([0.75, 0.25])
                 
-                # Recorremos cada perfil creando una fila horizontal con sus controles de orden y borrado
-                for idx, item in enumerate(st.session_state.perfiles_seleccionados):
-                    c_codigo = item['perfil'][0]
-                    c_nombre = item['perfil'][1]
+                with col_lista:
+                    st.write("📋 **Perfiles incluidos en la orden actual:**")
                     
-                    # Estructura de columnas idéntica a Modificar Protocolos
-                    col_num, col_nombre, col_chk, col_subir, col_bajar, col_borrar = st.columns([0.5, 3.5, 2.0, 1.0, 1.0, 1.0])
-                    
-                    with col_num:
-                        st.markdown(f"**{idx + 1}.**")
+                    # Recorremos los perfiles agregados para dibujarlos con su checkbox individual
+                    for idx, item in enumerate(st.session_state.perfiles_seleccionados):
+                        c_codigo = item['perfil'][0]
+                        c_nombre = item['perfil'][1]
                         
-                    with col_nombre:
-                        st.markdown(f"**({c_codigo}) — {c_nombre}**")
-                        
-                    with col_chk:
-                        # 💵 Tilde para marcar como Particular / Cobro Paciente
-                        item['es_particular'] = st.checkbox(
-                            "Particular", 
-                            value=item['es_particular'], 
-                            key=f"particular_chk_{c_codigo}_{idx}"
-                        )
-                        
-                    with col_subir:
-                        if idx > 0:
-                            if st.button("⬆️", key=f"subir_{c_codigo}_{idx}", use_container_width=True):
-                                st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx-1] = \
-                                    st.session_state.perfiles_seleccionados[idx-1], st.session_state.perfiles_seleccionados[idx]
-                                st.rerun()
-                                
-                    with col_bajar:
-                        if idx < len(st.session_state.perfiles_seleccionados) - 1:
-                            if st.button("⬇️", key=f"bajar_{c_codigo}_{idx}", use_container_width=True):
-                                st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx+1] = \
-                                    st.session_state.perfiles_seleccionados[idx+1], st.session_state.perfiles_seleccionados[idx]
-                                st.rerun()
-                                
-                    with col_borrar:
-                        if st.button("❌", key=f"quitar_{c_codigo}_{idx}", use_container_width=True):
-                            st.session_state.perfiles_seleccionados.pop(idx)
-                            st.rerun()
+                        col_txt, col_chk = st.columns([0.65, 0.35])
+                        with col_txt:
+                            st.markdown(f"**{idx + 1}. ({c_codigo}) — {c_nombre}**")
+                        with col_chk:
+                            # 🟡 CHECKBOX CLAVE: Tilde para marcar como Particular / Cobro Paciente
+                            item['es_particular'] = st.checkbox(
+                                "💵 Paga Paciente (Particular)", 
+                                value=item['es_particular'], 
+                                key=f"particular_chk_{c_codigo}_{idx}"
+                            )
+                        st.markdown("<hr style='margin: 3px 0;'>", unsafe_allow_html=True)
 
-                st.markdown("---")
-            # ===================================================
-            # BOTÓN DE GUARDADO CORREGIDO CON SINTAXIS POSTGRESQL (%s)
+                    opciones_radio = range(len(st.session_state.perfiles_seleccionados))
+                    perfil_index_sel = st.radio(
+                        "Seleccione un perfil si desea moverlo de lugar o quitarlo:", 
+                        options=opciones_radio,
+                        format_func=lambda i: f"({st.session_state.perfiles_seleccionados[i]['perfil'][0]}) — {st.session_state.perfiles_seleccionados[i]['perfil'][1]}"
+                    )
+
+                with col_botones:
+                    st.write("### Ordenar")
+                    
+                    # ⬆️ BOTÓN SUBIR PERFIL
+                    if st.button("🔼 Subir", use_container_width=True, key="btn_subir_perfil"):
+                        if perfil_index_sel > 0:
+                            idx = perfil_index_sel
+                            st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx-1] = \
+                                st.session_state.perfiles_seleccionados[idx-1], st.session_state.perfiles_seleccionados[idx]
+                            st.rerun()
+                            
+                    # ⬇️ BOTÓN BAJAR PERFIL
+                    if st.button("🔽 Bajar", use_container_width=True, key="btn_bajar_perfil"):
+                        if perfil_index_sel < len(st.session_state.perfiles_seleccionados) - 1:
+                            idx = perfil_index_sel
+                            st.session_state.perfiles_seleccionados[idx], st.session_state.perfiles_seleccionados[idx+1] = \
+                                st.session_state.perfiles_seleccionados[idx+1], st.session_state.perfiles_seleccionados[idx]
+                            st.rerun()
+                            
+                    st.write("---")
+                    # ❌ BOTÓN QUITAR PERFIL
+                    if st.button("🗑️ Quitar Práctica", use_container_width=True, key="btn_quitar_perfil", type="secondary"):
+                        st.session_state.perfiles_seleccionados.pop(perfil_index_sel)
+                        st.rerun()
+
+            st.markdown("---")
+
+                        # ===================================================
+            # BOTÓN DE GUARDADO CORREGIDO
             # ===================================================
             if st.button("🚀 Crear Protocolo Médico", type="primary", use_container_width=True):
                 if not st.session_state.perfiles_seleccionados:
@@ -1569,24 +1525,26 @@ elif menu == "🛒 Carga de Protocolos":
                     orden_id = registrar_orden(proto_man, p_sel, m_sel, o_sel, bq_sel, tipo_p_sel, nro_ord_int, lista_ids_ordenados, fecha_para_guardar)
                     
                     if orden_id:
-                        # 2. Obtenemos datos de los perfiles
+                        # 1. Obtenemos primero los datos de los perfiles antes de tocar la BD
                         datos_perfiles = []
                         for item in st.session_state.perfiles_seleccionados:
                             cod_p = item['perfil'][0]
                             p_particular = 1 if item['es_particular'] else 0
-                            sub_items = obtener_sub_items_de_practica(cod_p)
+                            sub_items = obtener_sub_items_de_practica(cod_p) # Esta función suele cerrar conn
                             datos_perfiles.append((cod_p, p_particular, sub_items))
 
-                        # 3. Abrimos conexión para actualizar los items con sintaxis correcta (%s)
+                        # 2. Abrimos UNA SOLA CONEXIÓN LIMPIA para todas las actualizaciones y lecturas
                         conn = conectar_db()
                         c = conn.cursor()
                         
                         try:
-                            c.execute("ALTER TABLE resultados_items ADD COLUMN IF NOT EXISTS es_particular INTEGER DEFAULT 0")
+                            c.execute("ALTER TABLE resultados_items ADD COLUMN es_particular INTEGER DEFAULT 0")
                         except Exception:
                             pass 
                         
+                        # 3. Actualizamos orden_visual y es_particular usando el índice exacto de la lista
                         for idx, (cod_p, p_particular, sub_items) in enumerate(datos_perfiles):
+                            # (idx + 1) respeta estrictamente el orden visual de los botones de subir/bajar
                             orden_del_perfil = idx + 1
                             
                             for sub in sub_items:
@@ -1598,28 +1556,72 @@ elif menu == "🛒 Carga de Protocolos":
                                 except Exception:
                                     num_orden_interno = 0
                                 
+                                # Multiplicador 1000 para evitar solapamientos entre perfiles largos
                                 orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
                                 
-                                # CORREGIDO: Se reemplazaron los '?' por '%s' compatibles con PostgreSQL
                                 c.execute("""
                                     UPDATE resultados_items 
-                                    SET orden_visual = %s, es_particular = %s 
-                                    WHERE orden_id = %s AND codigo_perfil = %s AND codigo_item = %s
+                                    SET orden_visual = ?, es_particular = ? 
+                                    WHERE orden_id = ? AND codigo_perfil = ? AND codigo_item = ?
                                 """, (orden_visual_calculado, p_particular, orden_id, cod_p, c_item))
                         
+                        # 3. Actualizamos orden_visual y es_particular
+                        for cod_p, p_particular, sub_items in datos_perfiles:
+                            for sub in sub_items:
+                                c_item = sub[1]
+                                s_ord = sub[8] if len(sub) > 8 else 0
+                                
+                                try:
+                                    num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
+                                except Exception:
+                                    num_orden_interno = 0
+                                
+                                orden_visual_calculado = (orden_del_perfil * 100) + num_orden_interno
+                                
+                                c.execute("""
+                                    UPDATE resultados_items 
+                                    SET orden_visual = ?, es_particular = ? 
+                                    WHERE orden_id = ? AND codigo_perfil = ? AND codigo_item = ?
+                                """, (orden_visual_calculado, p_particular, orden_id, cod_p, c_item))
+                                
+                            orden_del_perfil += 1
+                        
+                        # 4. Guardamos los cambios
                         conn.commit()
-                        conn.close()
 
-                        # 4. Limpiamos estados y mostramos éxito
+                        # 5. Consultamos el número real de protocolo antes de cerrar la BD
+                        num_protocolo_real = orden_id
+                        try:
+                            c.execute("SELECT nro_protocolo FROM ordenes WHERE id = ?", (orden_id,))
+                            fila_proto = c.fetchone()
+                            if fila_proto and fila_proto[0]:
+                                num_protocolo_real = fila_proto[0]
+                        except Exception as e:
+                            print(f"Nota consulta protocolo: {e}")
+                            num_protocolo_real = orden_id
+
+                        # 1. Abrimos conexión y cursor de forma segura para obtener el ID real
+                        conn_temp = conectar_db()
+                        cur_temp = conn_temp.cursor()
+                        
+                        # 2. Obtenemos el ID máximo (la última orden recién creada)
+                        cur_temp.execute("SELECT MAX(id) FROM ordenes")
+                        fila_proto = cur_temp.fetchone()
+                        num_protocolo_real = fila_proto[0] if fila_proto and fila_proto[0] is not None else orden_id
+
+                        # 3. Cerramos la conexión temporal correctamente
+                        conn_temp.close()
+                        
+                        # 4. Limpiamos estados y mostramos el mensaje de éxito con el número exacto
                         st.session_state.perfiles_seleccionados = []
                         st.toast("🎉 ¡Protocolo creado con éxito!", icon="✅")
-                        st.success("💾 ¡El Protocolo se ha guardado correctamente en el sistema!")
+                        st.success(f"💾 ¡El Protocolo N° **{num_protocolo_real}** se ha guardado correctamente!")
                         
                         import time
                         time.sleep(1.5)
                         st.rerun()
                     else:
-                        st.error("⚠️ Error al registrar la orden en la base de datos. Verifique la conexión e intente nuevamente.")
+                        st.error("⚠️ Error crítico: El número de protocolo ingresado ya existe en el sistema. Verifique e intente con otro.")
 
                         
 elif menu == "✏️ Modificar Protocolos":
@@ -1978,7 +1980,7 @@ elif menu == "🧪 Área Analítica (Carga)":
         
         nombre_paciente_sel = None
         estado_orden_sel = None 
-        pac_id_sel = None  
+        pac_id_sel = None  # Variable para guardar el ID real del paciente
 
         for o in todas_ordenes:
             if o[0] == orden_id:
@@ -1986,16 +1988,16 @@ elif menu == "🧪 Área Analítica (Carga)":
                 estado_orden_sel = o[4]
                 break
 
-        # Extracción de datos del paciente (edad y sexo)
-        p_edad = 18   
-        p_sexo = "m"  
+        # 🚀 EXTRAEMOS PACIENTE_ID, EDAD Y SEXO DESDE LA BASE DE DATOS
+        p_edad = 18   # Por defecto
+        p_sexo = "m"  # Por defecto
         try:
             conn_pac = conectar_db(); cur_pac = conn_pac.cursor()
             cur_pac.execute("""
                 SELECT p.id, p.edad, p.sexo 
                 FROM pacientes p 
                 JOIN ordenes o ON o.paciente_id = p.id 
-                WHERE o.id = %s
+                WHERE o.id = ?
             """, (orden_id,))
             pac_data = cur_pac.fetchone()
             if pac_data:
@@ -2019,17 +2021,21 @@ elif menu == "🧪 Área Analítica (Carga)":
             items = cur_items.fetchall()
             conn_items.close()
         except Exception as e:
+            import streamlit as st
             st.error(f"Error al cargar items: {e}")
-            items = []
+            items = []  # Evita que falle la variable si hay un error
         
-        # ELIMINAMOS EL SORTED DE AQUÍ PARA QUE RESPETE 
-        # EXACTAMENTE EL ORDEN NATURAL DE LA BASE DE DATOS
+        try:
+            # Índice 12 corresponde a orden_visual en la tupla de resultados_items
+            items = sorted(items, key=lambda x: (int(x[12]) if x[12] is not None else 9999))
+        except Exception:
+            pass
 
         resp_list = [r[1] for r in listar_respuestas_fijas()]
         
         st.markdown("---")
         
-        # Control de seguridad de validación
+        # 🔐 CONTROL DE SEGURIDAD GENERAL
         estado_actual_aa = str(estado_orden_sel).strip().lower()
         es_validado_aa = "validad" in estado_actual_aa or "firmad" in estado_actual_aa or "cerrad" in estado_actual_aa
         
@@ -2037,7 +2043,7 @@ elif menu == "🧪 Área Analítica (Carga)":
             st.error("🛑 **Resultados Bloqueados:** Este protocolo ya se encuentra **VALIDADO**.")
             if st.button("🔓 Desvalidar Protocolo para Editar Resultados", type="secondary", use_container_width=True, key=f"btn_desval_aa_{orden_id}"):
                 conn = conectar_db(); c = conn.cursor()
-                c.execute("UPDATE ordenes SET estado = 'Pendiente' WHERE id = %s", (orden_id,))
+                c.execute("UPDATE ordenes SET estado = 'Pendiente' WHERE id = ?", (orden_id,))
                 conn.commit(); conn.close()
                 st.toast("🔓 Protocolo liberado. Ya puede editar los resultados.", icon="🔓")
                 st.rerun()
@@ -2049,105 +2055,73 @@ elif menu == "🧪 Área Analítica (Carga)":
         if not items: 
             st.info("Este protocolo se creó vacío.")
         else:
+            # -----------------------------------------------------------------
+            # FASE 1: CAPTURA DE VALORES E INTERFAZ GRÁFICA DE RENDERIZADO
+            # -----------------------------------------------------------------
             valores_temporales = {}
+            mapa_codigos = {}
             
-            # -----------------------------------------------------------------
-            # PASO 1: CAPTURAMOS TODOS LOS VALORES ACTUALES DE LA PANTALLA/DB
-            # -----------------------------------------------------------------
-            mapa_valores_actuales = {}
-            for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
-                if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
-                    continue
-                
-                clave_item = str(item_c).strip().upper() if item_c else str(sub_item).strip().upper()
-                key_input_s = f"val_{orden_id}_{item_c}_{idx}"
-                val_actual = st.session_state.get(key_input_s, str(resultado) if resultado is not None else "")
-                
-                mapa_valores_actuales[clave_item] = str(val_actual).strip()
-                if sub_item:
-                    mapa_valores_actuales[str(sub_item).strip().upper()] = str(val_actual).strip()
-
-            # -----------------------------------------------------------------
-            # PASO 2: CALCULAMOS AUTOMÁTICAMENTE LOS AUTOMATISMOS
-            # -----------------------------------------------------------------
-            # A. Hemograma
-            try:
-                gr = float(mapa_valores_actuales.get("GR_01", "0").replace(',', '.'))
-                ht = float(mapa_valores_actuales.get("HT_02", "0").replace(',', '.'))
-                hb = float(mapa_valores_actuales.get("HB_03", "0").replace(',', '.'))
-                
-                if gr > 0 and ht > 0:
-                    valores_temporales["VCM_04"] = str(round((ht * 10) / gr, 1))
-                if gr > 0 and hb > 0:
-                    valores_temporales["HCM_05"] = str(round((hb * 10) / gr, 1))
-                if ht > 0 and hb > 0:
-                    valores_temporales["CHCM_06"] = str(round((hb * 100) / ht, 1))
-            except Exception:
-                pass
-
-            # B. Filtrado Glomerular (CKD-EPI)
-            try:
-                crea_val = mapa_valores_actuales.get("192", "")
-                if crea_val and str(crea_val).replace('.', '', 1).isdigit():
-                    fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), p_edad, p_sexo)
-                    if fge_resultado:
-                        valores_temporales["FGe"] = str(fge_resultado)
-                        valores_temporales["1070"] = str(fge_resultado)
-            except Exception:
-                pass
-
-            # C. Glucosa Promedio Estimada (GPE)
-            try:
-                hba1c_val = ""
-                for k, v in mapa_valores_actuales.items():
-                    if "GLICOSILADA" in k or "ALC" in k or "HBA1C" in k:
-                        hba1c_val = v
-                        break
-                if hba1c_val:
-                    hba1c_num = float(str(hba1c_val).replace(',', '.'))
-                    gpe_calc = round((28.7 * hba1c_num) - 46.7, 1)
-                    valores_temporales["GPE"] = str(gpe_calc)
-            except Exception:
-                pass
-
-            # -----------------------------------------------------------------
-            # PASO 3: RENDERIZADO LIMPIO Y ORDENADO DE LA GRILLA
-            # -----------------------------------------------------------------
-            def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=10):
+            # Función auxiliar interna para traer antecedentes de manera segura
+            def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=15):
                 if not codigo_item:
                     return []
+
                 conn = conectar_db()
                 cur = conn.cursor()
                 historial = []
+
+                # Ampliamos la consulta para buscar tanto por el código exacto como por coincidencias de sub_item
                 query = """
-                    SELECT o.fecha, ri.resultado, ri.unidad, o.id AS nro_protocolo
+                    SELECT 
+                        o.fecha, 
+                        ri.resultado, 
+                        ri.unidad, 
+                        o.id AS nro_protocolo
                     FROM resultados_items ri
                     JOIN ordenes o ON ri.orden_id = o.id
                     LEFT JOIN pacientes p ON o.paciente_id = p.id
-                    WHERE (o.paciente_id = %s OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s)))
-                      AND (TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(%s)) OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(%s)))
-                      AND o.id < %s AND ri.resultado IS NOT NULL AND TRIM(CAST(ri.resultado AS TEXT)) != ''
-                    ORDER BY o.id DESC LIMIT %s
+                    WHERE (o.paciente_id = ? OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(?)))
+                      AND (
+                          TRIM(UPPER(ri.codigo_item)) = TRIM(UPPER(?)) 
+                          OR TRIM(UPPER(ri.sub_item)) = TRIM(UPPER(?))
+                      )
+                      AND o.id < ?
+                      AND ri.resultado IS NOT NULL 
+                      AND TRIM(CAST(ri.resultado AS TEXT)) != ''
+                    ORDER BY o.id DESC
+                    LIMIT ?
                 """
+
                 try:
-                    cur.execute(query, (paciente_id, str(nombre_paciente).strip() if nombre_paciente else "", str(codigo_item).strip(), str(codigo_item).strip(), orden_id_actual, limite))
+                    cur.execute(query, (
+                        paciente_id, 
+                        str(nombre_paciente).strip(), 
+                        str(codigo_item).strip(), 
+                        str(codigo_item).strip(), 
+                        orden_id_actual, # Usamos menor (<) que el protocolo actual para garantizar que sean estrictamente históricos hacia atrás
+                        limite
+                    ))
                     historial = cur.fetchall()
-                except Exception:
+                except Exception as e:
+                    print(f"Error al consultar historial: {e}")
                     historial = []
                 finally:
                     conn.close()
+
                 return historial
 
+                        # Cambiá tu bucle actual por este con enumerate(items):
             for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
-                
-                # Manejo estricto de títulos (para que no rompan la visual)
                 if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
                     st.markdown(f"### 📊 {sub_item.upper()}")
                     st.markdown("---")
                     continue
                 
+                # BÚSQUEDA DE ANTECEDENTES HISTÓRICOS
                 historial = obtener_historial_paciente_item(pac_id_sel, nombre_paciente_sel, item_c, orden_id, 10)
+                
 
+                # Proporciones equilibradas para mantener todo perfectamente horizontal
                 col_n, col_v, col_u, col_h = st.columns([3, 5, 2, 2])
 
                 with col_n:
@@ -2157,6 +2131,7 @@ elif menu == "🧪 Área Analítica (Carga)":
 
                 with col_v:
                     col_sub_manual, col_sub_combo = st.columns([1, 1])
+                    
                     opciones_combo = ["-- Manual --"] + resp_list
                     
                     index_def = 0
@@ -2168,32 +2143,22 @@ elif menu == "🧪 Área Analítica (Carga)":
                             "Prediseñado",
                             options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{orden_id}_resp_{r_id}_{idx}"
+                            key=f"sel_{orden_id}_resp_{r_id}_{idx}"  # 👈 Clave 100% única garantizada
                         )
                     
                     with col_sub_manual:
-                        clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
-                        c_item_clean = str(item_c).strip().upper() if item_c else ""
-                        sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
-                        
-                        # Determinamos el valor a mostrar (priorizando los cálculos automáticos si aplican)
-                        val_a_mostrar = str(resultado if resultado is not None else "")
-                        
-                        if c_item_clean in valores_temporales:
-                            val_a_mostrar = valores_temporales[c_item_clean]
-                        elif sub_item_clean in valores_temporales:
-                            val_a_mostrar = valores_temporales[sub_item_clean]
-                        elif ("FGE" in c_item_clean or "FILTRADO" in sub_item_clean or c_item_clean == "1070") and "FGe" in valores_temporales:
-                            val_a_mostrar = valores_temporales["FGe"]
-                        elif ("GLUCOSA" in sub_item_clean or "PROMEDIO" in sub_item_clean or "GPE" in c_item_clean) and "GPE" in valores_temporales:
-                            val_a_mostrar = valores_temporales["GPE"]
-
                         if seleccion_resp == "-- Manual --":
-                            val_input = st.text_input("Resultado", value=val_a_mostrar, key=f"val_{orden_id}_{item_c}_{idx}", label_visibility="collapsed")
-                            valores_temporales[clave_segura] = val_input
+                            val_actual_str = str(resultado) if resultado is not None else ""
+                            val_input = st.text_input(
+                                "Resultado",
+                                value=str(resultado if resultado is not None else ""),
+                                key=f"val_{orden_id}_{r_id}_{idx}",  # 👈 Clave única asegurada para el cuadro de texto
+                                label_visibility="collapsed"
+                            )
+                            valores_temporales[r_id] = val_input
                         else:
-                            st.text_input("Resultado", value=seleccion_resp, key=f"raw_dis_{item_c}_{idx}", disabled=True, label_visibility="collapsed")
-                            valores_temporales[clave_segura] = seleccion_resp
+                            st.text_input("Resultado", value=seleccion_resp, key=f"raw_dis_{r_id}", disabled=True, label_visibility="collapsed")
+                            valores_temporales[r_id] = seleccion_resp
 
                 with col_u:
                     if unidad:
@@ -2202,65 +2167,256 @@ elif menu == "🧪 Área Analítica (Carga)":
                 with col_h:
                     if historial:
                         html_historial = ""
-                        for h_idx, item_h in enumerate(historial):
+
+                        for idx, item_h in enumerate(historial):
                             f_hist = item_h[0] if len(item_h) > 0 else ""
                             r_hist = item_h[1] if len(item_h) > 1 else ""
                             u_hist = item_h[2] if len(item_h) > 2 else ""
                             prot_h = item_h[3] if len(item_h) > 3 else ""
 
-                            fondo = "#eff6ff" if h_idx == 0 else ("#ffffff" if h_idx % 2 == 0 else "#f8fafc")
-                            borde = "#60a5fa" if h_idx == 0 else "#e2e8f0"
+                            fondo = "#eff6ff" if idx == 0 else ("#ffffff" if idx % 2 == 0 else "#f8fafc")
+                            borde = "#60a5fa" if idx == 0 else "#e2e8f0"
 
                             html_historial += f"""
-                            <div style="background-color: {fondo}; border: 1px solid {borde}; border-radius: 6px; padding: 4px 6px; margin-bottom: 4px; line-height: 1.1; font-size: 10px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <div style="
+                                background-color: {fondo};
+                                border: 1px solid {borde};
+                                border-radius: 6px;
+                                padding: 4px 6px;
+                                margin-bottom: 4px;
+                                line-height: 1.1;
+                                font-size: 10px;
+                                color: #0f172a;
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                            ">
                                 <span style="font-size: 8.5px; color: #64748b;">{f_hist} · #{prot_h}</span>
                                 <span style="font-weight: 700; color: #16a34a;"> — {r_hist}</span>
                                 <span style="font-size: 8.5px; color: #475569;"> {u_hist}</span>
                             </div>
                             """
-                        st.markdown(f"""<div style="border: 1px solid #cbd5e1; background-color: #f8fafc; border-radius: 10px; padding: 5px; height: 180px; overflow-y: auto; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">{html_historial}</div>""", unsafe_allow_html=True)
+
+                        st.markdown(
+                            f"""
+                            <div style="
+                                border: 1px solid #cbd5e1;
+                                background-color: #f8fafc;
+                                border-radius: 10px;
+                                padding: 5px;
+                                height: 180px;
+                                overflow-y: auto;
+                                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+                            ">
+                                {html_historial}
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
                     else:
                         st.caption("Sin historial")
 
+
+
+
+
+
+
+
+
+                # Alimentamos el mapa de códigos en tiempo real para cada ítem procesado
+                codigo_str = str(item_c).strip().upper()
+                mapa_codigos[codigo_str] = {
+                    'r_id': r_id,
+                    'valor': str(valores_temporales.get(r_id, "")).strip()
+                }
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+
             # -----------------------------------------------------------------
-            # PASO 4: BOTÓN DE GUARDADO SEGURO Y COMPLETO
+            # FASE 2: MOTOR DE PROCESAMIENTO MATEMÁTICO (FÓRMULAS)
             # -----------------------------------------------------------------
-            st.markdown("---")
-            if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa, use_container_width=True):
-                conn = conectar_db()
-                cur = conn.cursor()
+            hubo_error_ldl = False
+            
+            # Hemograma
+            gr_val = mapa_codigos.get("GR_01", {}).get("valor", "")
+            ht_val = mapa_codigos.get("HT_02", {}).get("valor", "")
+            hb_val = mapa_codigos.get("HB_03", {}).get("valor", "")
+            try:
+                gr = float(gr_val.replace(',', '.')) if gr_val else 0
+                ht = float(ht_val.replace(',', '.')) if ht_val else 0
+                hb = float(hb_val.replace(',', '.')) if hb_val else 0
                 
-                try:
-                    filas_actualizadas = 0
-                    for r_id_item, val in valores_temporales.items():
-                        resultado_str = str(val) if val is not None else ""
-                        
-                        # Actualizamos cada ítem respetando su código exacto en la base de datos
-                        cur.execute("""
-                            UPDATE resultados_items 
-                            SET resultado = %s 
-                            WHERE orden_id = %s 
-                            AND (
-                                codigo_item::text = %s 
-                                OR sub_item::text = %s
-                            )
-                        """, (resultado_str, orden_id, str(r_id_item), str(r_id_item)))
-                        
-                        filas_actualizadas += cur.rowcount
-                        
-                    conn.commit()
-                    conn.close()
+                if gr > 0 and ht > 0 and "VCM_04" in mapa_codigos:
+                    valores_temporales[mapa_codigos["VCM_04"]['r_id']] = str(round((ht * 10) / gr, 1))
+                if gr > 0 and hb > 0 and "HCM_05" in mapa_codigos:
+                    valores_temporales[mapa_codigos["HCM_05"]['r_id']] = str(round((hb * 10) / gr, 1))
+                if ht > 0 and hb > 0 and "CHCM_06" in mapa_codigos:
+                    valores_temporales[mapa_codigos["CHCM_06"]['r_id']] = str(round((hb * 100) / ht, 1))
+            except ValueError:
+                pass
+
+            # Perfil Lipídico
+            col_val = mapa_codigos.get("174", {}).get("valor", "")
+            hdl_val = mapa_codigos.get("1035", {}).get("valor", "")
+            tg_val = mapa_codigos.get("876", {}).get("valor", "")
+            try:
+                ct = float(col_val.replace(',', '.')) if col_val else 0
+                hdl = float(hdl_val.replace(',', '.')) if hdl_val else 0
+                tg = float(tg_val.replace(',', '.')) if tg_val else 0
+
+                if ct > 0 and hdl > 0:
+                    non_hdl = round(ct - hdl, 0)
+                    if "CNOH" in mapa_codigos: valores_temporales[mapa_codigos["CNOH"]['r_id']] = str(int(non_hdl))
+                    relacion_ch = round(ct / hdl, 1)
+                    if "C/H" in mapa_codigos: valores_temporales[mapa_codigos["C/H"]['r_id']] = str(relacion_ch)
+                    if "IA" in mapa_codigos: valores_temporales[mapa_codigos["IA"]['r_id']] = str(relacion_ch)
+
+                    if tg > 0:
+                        if non_hdl <= 0:
+                            st.error("⚠️ Cálculo de LDL falló: El colesterol No-HDL da un valor menor o igual a cero.")
+                            hubo_error_ldl = True
+                        elif tg < 9 or tg > 400:
+                            st.error("⚠️ Cálculo de LDL falló: Los triglicéridos deben estar entre 9 y 400 mg/dL para Johns Hopkins.")
+                            hubo_error_ldl = True
+                        else:
+                            col_idx = 0
+                            if non_hdl < 100: col_idx = 0
+                            elif non_hdl <= 129: col_idx = 1
+                            elif non_hdl <= 159: col_idx = 2
+                            elif non_hdl <= 189: col_idx = 3
+                            elif non_hdl <= 218: col_idx = 4
+                            else: col_idx = 5
+
+                            intervalos_tg = [
+                                (9, 49), (50, 56), (57, 63), (64, 70), (71, 77), (78, 84), (85, 91),
+                                (92, 98), (99, 105), (106, 112), (113, 120), (121, 128), (129, 137),
+                                (138, 147), (148, 158), (159, 170), (171, 184), (185, 201), (202, 222),
+                                (223, 252), (253, 298), (299, 400)
+                            ]
+                            matriz_factores = [
+                                [3.3, 3.1, 3.1, 3.1, 3.1, 3.1], [3.9, 3.7, 3.5, 3.5, 3.5, 3.5],
+                                [4.2, 4.0, 3.9, 3.8, 3.8, 3.8], [4.5, 4.3, 4.1, 4.0, 4.0, 4.0],
+                                [4.8, 4.5, 4.4, 4.3, 4.2, 4.2], [5.1, 4.8, 4.6, 4.5, 4.4, 4.4],
+                                [5.3, 5.0, 4.8, 4.7, 4.6, 4.6], [5.6, 5.3, 5.0, 4.9, 4.8, 4.8],
+                                [5.8, 5.5, 5.2, 5.1, 5.0, 5.0], [6.2, 5.7, 5.5, 5.3, 5.2, 5.2],
+                                [6.4, 6.0, 5.7, 5.5, 5.4, 5.4], [6.7, 6.2, 5.9, 5.8, 5.6, 5.6],
+                                [7.0, 6.5, 6.2, 6.0, 5.8, 5.8], [7.3, 6.8, 6.4, 6.2, 6.1, 6.1],
+                                [7.7, 7.1, 6.8, 6.5, 6.4, 6.4], [8.1, 7.5, 7.1, 6.9, 6.7, 6.7],
+                                [8.6, 7.9, 7.5, 7.2, 7.0, 7.0], [9.1, 8.4, 7.9, 7.6, 7.4, 7.4],
+                                [9.7, 9.0, 8.5, 8.1, 7.9, 7.9], [10.5, 9.6, 9.1, 8.7, 8.5, 8.5],
+                                [11.7, 10.6, 9.9, 9.5, 9.2, 9.2], [11.9, 11.9, 11.3, 10.8, 10.4, 10.4]
+                            ]
+                            fila_idx = None
+                            for i, (min_tg, max_tg) in enumerate(intervalos_tg):
+                                if min_tg <= tg <= max_tg:
+                                    fila_idx = i
+                                    break
+                            if fila_idx is not None:
+                                factor = matriz_factores[fila_idx][col_idx]
+                                ldl_calc = round(non_hdl - (tg / factor), 0)
+                                if "1040" in mapa_codigos:
+                                    valores_temporales[mapa_codigos["1040"]['r_id']] = str(int(ldl_calc))
+            except Exception as e:
+                hubo_error_ldl = True
+
+            # FGe CKD-EPI
+            crea_val = mapa_codigos.get("192", {}).get("valor", "")
+            if crea_val:
+                fge_val = calcular_fge_ckd_epi(crea_val.replace(',', '.'), p_edad, p_sexo)
+                if "FGE" in mapa_codigos: valores_temporales[mapa_codigos["FGE"]['r_id']] = fge_val
+
+            # Fórmulas Dinámicas Personalizadas
+            for r_id_f, _, item_c_f, _, _, _, _, _, formula_f, _, _, _, _, _ in items:
+                if formula_f and str(formula_f).strip():
+                    expr_evaluable = str(formula_f).strip().upper()
+                    codigos_db = sorted(mapa_codigos.keys(), key=len, reverse=True)
+                    hubo_reemplazo = False
+                    error_conversion = False
                     
-                    st.success(f"🎉 ¡Resultados guardados con éxito! ({filas_actualizadas} ítems actualizados)")
-                    import time
-                    time.sleep(1.2)
+                    for cod in codigos_db:
+                        if cod in expr_evaluable:
+                            valor_crudo = mapa_codigos[cod]['valor']
+                            try:
+                                valor_num = float(valor_crudo.replace(',', '.')) if valor_crudo else 0.0
+                                expr_evaluable = expr_evaluable.replace(cod, f"({valor_num})")
+                                hubo_reemplazo = True
+                            except ValueError:
+                                error_conversion = True
+                                break
+                    
+                    if hubo_reemplazo and not error_conversion:
+                        try:
+                            safe_dict = {"__builtins__": None, "abs": abs, "round": round, "min": min, "max": max}
+                            calculo_final = round(eval(expr_evaluable, safe_dict), 2)
+                            if isinstance(calculo_final, float) and calculo_final.is_integer():
+                                calculo_final = int(calculo_final)
+                            valores_temporales[r_id_f] = str(calculo_final)
+                        except ZeroDivisionError:
+                            valores_temporales[r_id_f] = ""
+                        except Exception:
+                            pass
+
+            # -----------------------------------------------------------------
+            # FASE 3: INTERFAZ DE IMAGEN (PROTEINOGRAMA) Y BOTÓN GUARDAR
+            # -----------------------------------------------------------------
+            tiene_pxe = any(str(item[2]).strip() == "764" for item in items)
+            archivo_grafico = None
+            eliminar_img = False
+            r_id_pxe = None
+
+            if tiene_pxe:
+                st.markdown("---")
+                st.markdown("### 📈 Gráfico de Corrida Electroforética (Código 764)")
+                imagen_guardada = None
+                
+                for item in items:
+                    if str(item[2]).strip() == "764":
+                        r_id_pxe = item[0]
+                        break
+                
+                if r_id_pxe:
+                    try:
+                        conn_img = conectar_db(); cur_img = conn_img.cursor()
+                        cur_img.execute("SELECT pxe_grafico FROM resultados_items WHERE id = ? AND pxe_grafico IS NOT NULL", (r_id_pxe,))
+                        row = cur_img.fetchone()
+                        if row: imagen_guardada = row[0]
+                        conn_img.close()
+                    except Exception:
+                        pass
+                
+                if imagen_guardada:
+                    st.image(imagen_guardada, caption="Corrida electroforética actual guardada", width=350)
+                    eliminar_img = st.checkbox("🗑️ Marcar para eliminar o reemplazar la imagen actual", key="del_pxe_actual")
+                else:
+                    st.info("ℹ️ Aún no se ha subido el gráfico de la corrida para este paciente.")
+                
+                archivo_grafico = st.file_uploader("Subir imagen de la corrida (.png, .jpg, .jpeg):", type=["png", "jpg", "jpeg"], key="uploader_pxe_corrida")
+                if archivo_grafico is not None:
+                    st.image(archivo_grafico, caption="Vista previa del nuevo gráfico a guardar", width=350)
+                st.markdown("---")
+
+            # Botón de Guardar Persistente
+            if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
+                conn = conectar_db(); cur = conn.cursor()
+                
+                for r_id, val in valores_temporales.items():
+                    cur.execute("UPDATE resultados_items SET resultado = ? WHERE id = ?", (str(val), r_id))
+                
+                if tiene_pxe and r_id_pxe:
+                    if archivo_grafico is not None:
+                        bytes_imagen = archivo_grafico.getvalue()
+                        cur.execute("UPDATE resultados_items SET pxe_grafico = ? WHERE id = ?", (sqlite3.Binary(bytes_imagen), r_id_pxe))
+                    elif eliminar_img:
+                        cur.execute("UPDATE resultados_items SET pxe_grafico = NULL WHERE id = ?", (r_id_pxe,))
+                
+                conn.commit(); conn.close()
+                
+                if not hubo_error_ldl:
+                    st.success("Resultados guardados con éxito.")
                     st.rerun()
-                    
-                except Exception as e:
-                    conn.rollback()
-                    conn.close()
-                    st.error(f"Error crítico al guardar: {e}")
-                    
+                else:
+                    st.warning("Se guardaron los demás resultados, pero el LDL no pudo procesarse. Revisa el error rojo de arriba.")
 elif menu == "🖨️ Validación e Informes":
     st.header("🖨️ Impresión y Validación de Informes Bioquímicos")
     ordenes = buscar_ordenes_todas()
@@ -3555,7 +3711,7 @@ elif menu == "⚙️ Configuración de Análisis":
             st.markdown("##### Textos del Informe:")
             nueva_leyenda = st.text_area("Leyenda Colegio / Matrícula de Autorización (Pie de página):", value=cfg_actual[8])
             if st.form_submit_button("⚙️ Actualizar Texto"):
-                conn = conectar_db(); cur = conn.cursor(); cur.execute("UPDATE configuracion_general SET leyenda_colegio = %s WHERE id = 1", (nueva_leyenda,)); conn.commit(); conn.close(); st.success("Texto pie de página actualizado correctamente."); st.rerun()
+                conn = conectar_db(); cur = conn.cursor(); cur.execute("UPDATE configuracion_general SET leyenda_colegio = ? WHERE id = 1", (nueva_leyenda,)); conn.commit(); conn.close(); st.success("Texto pie de página actualizado correctamente."); st.rerun()
         
         st.markdown("---")
         
@@ -3592,7 +3748,7 @@ elif menu == "⚙️ Configuración de Análisis":
         if uploaded_firma is not None:
             if st.button("💾 Guardar y Vincular Firma"):
                 conn = conectar_db(); cur = conn.cursor()
-                cur.execute("UPDATE bioquimicos SET firma_blob = %s WHERE id = %s", (sqlite3.Binary(uploaded_firma.getvalue()), bq_firma_sel))
+                cur.execute("UPDATE bioquimicos SET firma_blob = ? WHERE id = ?", (sqlite3.Binary(uploaded_firma.getvalue()), bq_firma_sel))
                 conn.commit(); conn.close(); st.success("Firma vinculada de manera exitosa."); st.rerun()
 elif menu == "📊 Estadísticas e Historial":
     import sqlite3
