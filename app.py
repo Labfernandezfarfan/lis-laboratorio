@@ -680,8 +680,7 @@ def guardar_paciente(nombre, dni, f_nac, edad, sexo, telefono, nro_afiliado):
 
 def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, tipo_p, nro_ord_int):
     """Actualiza los datos principales de la orden en la tabla ordenes."""
-    conn = conectar_db()
-    c = conn.cursor()
+    conn = conectar_db(); c = conn.cursor()
     try:
         c.execute("""
             UPDATE ordenes 
@@ -689,14 +688,10 @@ def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, t
                 bioquimico_firma_id = %s, tipo_paciente = %s, nro_orden_internacion = %s
             WHERE id = %s
         """, (nro_proto, fecha, medico_id, os_id, b_id, tipo_p, nro_ord_int, orden_id))
-        conn.commit()
-        exito = True
-    except Exception as e:
-        print(f"Error al actualizar orden: {e}")
+        conn.commit(); exito = True
+    except sqlite3.IntegrityError:
         exito = False
-    finally:
-        conn.close()
-    return exito
+    conn.close(); return exito
 
 def eliminar_item_de_orden(orden_id, codigo_item):
     """Elimina una determinación específica de un protocolo."""
@@ -766,17 +761,15 @@ def actualizar_orden_datos(orden_id, nro_proto, fecha, medico_id, os_id, b_id, t
             UPDATE ordenes 
             SET nro_protocolo = %s, fecha = %s, medico_id = %s, obra_social_id = %s, 
                 bioquimico_firma_id = %s, tipo_paciente = %s, nro_orden_internacion = %s
-            WHERE id = %s
+            WHERE id = ?
         """, (nro_proto, fecha, medico_id, os_id, b_id, tipo_p, nro_ord_int, orden_id))
         conn.commit()
         exito = True
-    except Exception as e:
-        print(f"Error al actualizar orden: {e}")
+    except sqlite3.IntegrityError:
         exito = False
-    finally:
-        conn.close()
+    conn.close()
     return exito
-    
+
 def eliminar_item_de_orden(orden_id, codigo_item):
     """Elimina una determinación específica de un protocolo."""
     conn = conectar_db()
@@ -917,18 +910,21 @@ def obtener_items_para_cargar(orden_id):
             ri.valores_referencia, 
             ri.resultado, 
             ri.es_titulo, 
-            COALESCE(d.formula_calculo, ri.formula) AS formula,
+            COALESCE(d.formula_calculo, ri.formula) AS formula, -- 👈 Si no hay en d, usa ri
             ri.metodo, 
             ri.en_negrita, 
             ri.ub_facturacion, 
             ri.orden_visual,
-            COALESCE(ri.es_particular, 0) AS es_particular
+            COALESCE(ri.es_particular, 0) AS es_particular -- 👈 Agregado clave (posición 13 / índice 13 o -1)
         FROM resultados_items ri
         LEFT JOIN determinaciones d ON ri.codigo_item = d.codigo_item
         WHERE ri.orden_id = %s 
-        ORDER BY CAST(ri.orden_visual AS INTEGER) ASC, ri.id ASC
+        ORDER BY ri.codigo_perfil ASC, CAST(ri.orden_visual AS INTEGER) ASC, ri.id ASC
     """, (orden_id,))
     res = c.fetchall(); conn.close(); return res
+
+# Comenta o borra esta línea donde inicia tu app:
+# crear_tablas()
 
 # --- MENÚ DEL SISTEMA (UNIFICADO) ---
 # --- MENÚ DEL SISTEMA (UNIFICADO) ---
@@ -1823,94 +1819,116 @@ elif menu == "✏️ Modificar Protocolos":
         st.markdown("<br>", unsafe_allow_html=True)
 
         if st.session_state.perfiles_editar:
-            st.write("📋 **Estructura y Orden del Protocolo:**")
-            st.caption("Usa los botones de las flechas para reordenar cada práctica de forma inmediata.")
+            col_lista_m, col_botones_m = st.columns([0.75, 0.25])
             
-            nueva_lista_perfiles = list(st.session_state.perfiles_editar)
-            total_items = len(nueva_lista_perfiles)
-            
-            for i, (p_id, p_nom, p_part) in enumerate(nueva_lista_perfiles):
-                # Usamos un key único combinando el ID de la orden, el ID del perfil y el índice exacto
-                c_txt, c_chk, c_sub, c_baj, c_quit = st.columns([0.45, 0.25, 0.10, 0.10, 0.10])
+            with col_lista_m:
+                st.write("📋 **Estructura y Orden del Protocolo:**")
+                # Mostramos cada práctica con su checkbox de "Paga Paciente (Particular)" al lado
+                nuevos_estados_particulares = []
+                for i, (p_id, p_nom, p_part) in enumerate(st.session_state.perfiles_editar):
+                    col_item_txt, col_item_chk = st.columns([0.65, 0.35])
+                    with col_item_txt:
+                        st.markdown(f"**{i+1}.** `({p_id})` — {p_nom.upper()}")
+                    with col_item_chk:
+                        chk_val = st.checkbox("💵 Paga Paciente (Particular)", value=p_part, key=f"chk_part_mod_{orden_id_mod}_{p_id}_{i}")
+                        nuevos_estados_particulares.append((p_id, p_nom, chk_val))
                 
-                with c_txt:
-                    st.markdown(f"**{i+1}.** `({p_id})` — {p_nom.upper()}")
-                    
-                with c_chk:
-                    # Key único y seguro
-                    nuevo_part = st.checkbox("Particular", value=p_part, key=f"chk_p_{orden_id_mod}_{p_id}_{i}")
-                    if nuevo_part != p_part:
-                        nueva_lista_perfiles[i] = (p_id, p_nom, nuevo_part)
-                        st.session_state.perfiles_editar = nueva_lista_perfiles
-                        
-                with c_sub:
-                    if i > 0:
-                        if st.button("⬆️", key=f"sub_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
-                            nueva_lista_perfiles[i], nueva_lista_perfiles[i-1] = nueva_lista_perfiles[i-1], nueva_lista_perfiles[i]
-                            st.session_state.perfiles_editar = nueva_lista_perfiles
-                            st.rerun()
-                            
-                with c_baj:
-                    if i < total_items - 1:
-                        if st.button("⬇️", key=f"baj_{orden_id_mod}_{p_id}_{i}", use_container_width=True):
-                            nueva_lista_perfiles[i], nueva_lista_perfiles[i+1] = nueva_lista_perfiles[i+1], nueva_lista_perfiles[i]
-                            st.session_state.perfiles_editar = nueva_lista_perfiles
-                            st.rerun()
-                            
-                with c_quit:
-                    if st.button("❌", key=f"quit_{orden_id_mod}_{p_id}_{i}", use_container_width=True, type="secondary"):
-                        nueva_lista_perfiles.pop(i)
-                        st.session_state.perfiles_editar = nueva_lista_perfiles
+                # Actualizamos los valores de particular en el session state si cambian
+                if nuevos_estados_particulares != st.session_state.perfiles_editar:
+                    st.session_state.perfiles_editar = nuevos_estados_particulares
+
+                # Radio invisible o selector para elegir cuál mover con los botones
+                opciones_radio_m = range(len(st.session_state.perfiles_editar))
+                perfil_index_sel_m = st.radio(
+                    "Seleccione el índice de la práctica a mover o quitar:", 
+                    options=opciones_radio_m,
+                    format_func=lambda i: f"Mover/Quitar ítem N° {i+1}: ({st.session_state.perfiles_editar[i][0]})"
+                )
+
+            with col_botones_m:
+                st.write("### Ordenar")
+                
+                if st.button("🔼 Subir", use_container_width=True, key=f"btn_subir_mod_{orden_id_mod}"):
+                    if perfil_index_sel_m > 0:
+                        idx = perfil_index_sel_m
+                        st.session_state.perfiles_editar[idx], st.session_state.perfiles_editar[idx-1] = \
+                            st.session_state.perfiles_editar[idx-1], st.session_state.perfiles_editar[idx]
                         st.rerun()
                         
-            st.markdown("---")
+                if st.button("🔽 Bajar", use_container_width=True, key=f"btn_bajar_mod_{orden_id_mod}"):
+                    if perfil_index_sel_m < len(st.session_state.perfiles_editar) - 1:
+                        idx = perfil_index_sel_m
+                        st.session_state.perfiles_editar[idx], st.session_state.perfiles_editar[idx+1] = \
+                            st.session_state.perfiles_editar[idx+1], st.session_state.perfiles_editar[idx]
+                        st.rerun()
+                        
+                st.write("---")
+                if st.button("🗑️ Quitar", use_container_width=True, key=f"btn_quitar_mod_{orden_id_mod}", type="secondary"):
+                    st.session_state.perfiles_editar.pop(perfil_index_sel_m)
+                    st.rerun()
         else:
             st.info("Este protocolo no tiene prácticas asignadas en este momento.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
             
-        # 4. BOTÓN DE GUARDADO FINAL Y RECALCULO DE ORDEN VISUAL
+        # 4. BOTÓN DE GUARDADO FINAL Y RECALCULO DE ORDEN VISUAL (ESTABLE)
         if st.button("💾 Guardar Estructura y Orden de Prácticas", type="primary", use_container_width=True, key=f"btn_save_practicas_{orden_id_mod}", disabled=es_validado):
             if not st.session_state.perfiles_editar:
                 st.error("Error: El protocolo no puede quedar vacío. Asigne al menos una práctica antes de guardar.")
             else:
-                conn = conectar_db()
-                c = conn.cursor()
+                conn = conectar_db(); c = conn.cursor()
                 
+                # 1. Conservamos de forma segura ABSOLUTAMENTE TODO lo que ya esté escrito en la pantalla
+                c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
+                valores_cargados_previamente = {str(row[0]).strip(): row[1] for row in c.fetchall()}
+                
+                # 1. Borramos los ítems anteriores del protocolo para evitar conflictos
+                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
+
+                # 2. Reinyectamos las prácticas usando el índice estricto de la lista
+                for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
+                    orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
+                    sub_items = obtener_sub_items_de_practica(perf_id)
+                    val_part_int = 1 if es_particular_bool else 0
+                    
+                    for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+                        codigo_limpio = str(c_item).strip()
+                        
+                        # 0. Primero rescatamos los resultados que ya estaban cargados en pantalla para no perderlos
+                                # 0. Primero rescatamos los resultados que ya estaban cargados en pantalla para no perderlos
+                valores_cargados_previamente = {}
                 try:
-                    # 1. Rescatamos los resultados que ya estaban cargados previamente para no perderlos
-                    valores_cargados_previamente = {}
-                    c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
+                    c.execute("SELECT codigo_item, resultado FROM resultados_items WHERE orden_id = %s", (orden_id,))
                     for row in c.fetchall():
                         if row[0] is not None:
                             valores_cargados_previamente[str(row[0]).strip()] = row[1]
+                except Exception:
+                    pass
+                
+                # 1. Borramos los ítems anteriores del protocolo para limpiar y reordenar
+                c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id,))
+                
+                # 2. Reinyectamos las prácticas usando el índice estricto de la lista
+                for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
+                    orden_del_perfil = idx + 1  # Índice basado estrictamente en la posición visual
+                    sub_items = obtener_sub_items_de_practica(perf_id)
+                    val_part_int = 1 if es_particular_bool else 0
                     
-                    # 2. Borramos los ítems anteriores de ESTA orden específica
-                    c.execute("DELETE FROM resultados_items WHERE orden_id = %s", (orden_id_mod,))
-                    
-                    # 3. RECORRIDO ESTRICTO: Usamos el orden exacto de st.session_state.perfiles_editar
-                    for idx, (perf_id, _, es_particular_bool) in enumerate(st.session_state.perfiles_editar):
-                        orden_del_perfil = idx + 1  # 1, 2, 3... según cómo los subiste o bajaste con las flechitas
-                        sub_items = obtener_sub_items_de_practica(perf_id)
-                        val_part_int = 1 if es_particular_bool else 0
+                    for _, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac in sub_items:
+                        codigo_limpio = str(c_item).strip()
                         
-                        # ORDENAMOS EXPLÍCITAMENTE LOS SUB-ÍTEMS por su número de orden interno (s_ord) 
-                        # para que no se desarmen al guardarse en la base de datos
                         try:
-                            sub_items_ordenados = sorted(
-                                sub_items, 
-                                key=lambda x: int(x[7]) if x[7] is not None and str(x[7]).strip() != "" else 0
-                            )
+                            num_orden_interno = int(s_ord) if s_ord is not None and str(s_ord).strip() != "" else 0
                         except Exception:
-                            sub_items_ordenados = sub_items
-
-                        for sub_idx, (_, c_item, s_nombre, s_uni, s_ref, s_tit, s_form, s_ord, s_met, s_neg, s_ub_fac) in enumerate(sub_items_ordenados):
-                            codigo_limpio = str(c_item).strip()
+                            num_orden_interno = 0
                             
-                            # Asignamos un orden visual estrictamente secuencial basado en la posición 
-                            # de la práctica en la lista y la posición interna del sub-ítem
-                            orden_visual_calculado = (orden_del_perfil * 10000) + sub_idx + 1
-                            
-                            resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
-                            
+                        orden_visual_calculado = (orden_del_perfil * 1000) + num_orden_interno
+                        
+                        # ASEGURAMOS QUE LA VARIABLE EXISTA SIEMPRE:
+                        resultado_a_preservar = valores_cargados_previamente.get(codigo_limpio, '')
+                        
+                        # Insertamos nuevamente con el bloque protegido para ver si hay otro error de Postgres
+                        try:
                             c.execute("""
                                 INSERT INTO resultados_items (
                                     orden_id, codigo_perfil, codigo_item, sub_item, resultado, 
@@ -1919,7 +1937,7 @@ elif menu == "✏️ Modificar Protocolos":
                                 ) 
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             """, (
-                                orden_id_mod, 
+                                orden_id, 
                                 perf_id, 
                                 c_item, 
                                 s_nombre, 
@@ -1934,22 +1952,21 @@ elif menu == "✏️ Modificar Protocolos":
                                 s_ub_fac, 
                                 val_part_int
                             ))
-                            
-                    # 4. FUERA de los bucles: Guardamos los cambios definitivamente en la BD
-                    conn.commit()
-                    st.success("¡Estructura y orden guardados correctamente!")
-                    
-                    # Limpiamos la caché de edición para refrescar
-                    if 'perfiles_editar' in st.session_state:
-                        del st.session_state.perfiles_editar
-                        
-                    st.rerun()
-                    
-                except Exception as e:
-                    conn.rollback()
-                    st.error(f"🚨 Error al guardar en la base de datos: {e}")
-                finally:
-                    conn.close()
+                        except Exception as e:
+                            import streamlit as st
+                            st.error(f"🚨 ERROR EN EL INSERT: {e}")
+                            st.stop()
+                
+                st.toast("🎉 ¡Estructura modificada y ordenada con éxito!", icon="✅")
+                # Al final de tu botón o lógica de guardado:
+                st.success("¡Protocolo modificado y reordenado con éxito!")
+                
+                # Limpiamos las variables de edición para que la próxima lectura sea fresca
+                if 'perfiles_editar' in st.session_state:
+                    del st.session_state.perfiles_editar
+                
+                # Forzamos a Streamlit a recargar la página para que el Área Analítica lea de la BD actualizada
+                st.rerun()
                 
         st.markdown("---")        
 
@@ -2012,18 +2029,16 @@ elif menu == "🧪 Área Analítica (Carga)":
             conn_items = conectar_db()
             cur_items = conn_items.cursor()
             cur_items.execute("""
-                SELECT id, codigo_perfil, codigo_item, sub_item, unidad, valores_referencia, 
+                SELECT id, perfil_codigo, codigo_item, sub_item, unidad, valores_referencia, 
                        resultado, es_titulo, formula, metodo, en_negrita, ub_facturacion, orden_visual, es_particular
                 FROM resultados_items 
-                WHERE orden_id = %s
+                WHERE orden_id = ?
                 ORDER BY orden_visual ASC
             """, (orden_id,))
             items = cur_items.fetchall()
             conn_items.close()
-        except Exception as e:
-            import streamlit as st
-            st.error(f"Error al cargar items: {e}")
-            items = []  # Evita que falle la variable si hay un error
+        except Exception:
+            items = obtener_items_para_cargar(orden_id)
         
         try:
             # Índice 12 corresponde a orden_visual en la tupla de resultados_items
@@ -2110,8 +2125,9 @@ elif menu == "🧪 Área Analítica (Carga)":
 
                 return historial
 
-                        # Cambiá tu bucle actual por este con enumerate(items):
-            for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
+            # Bucle principal que dibuja cada ítem en pantalla de forma ordenada
+            for r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part in items:
+
                 if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
                     st.markdown(f"### 📊 {sub_item.upper()}")
                     st.markdown("---")
@@ -2140,19 +2156,22 @@ elif menu == "🧪 Área Analítica (Carga)":
                         
                     with col_sub_combo:
                         seleccion_resp = st.selectbox(
-                            "Prediseñado",
-                            options=opciones_combo,
+                            "Prediseñado", 
+                            options=opciones_combo, 
                             index=index_def,
-                            key=f"sel_{orden_id}_resp_{r_id}_{idx}"  # 👈 Clave 100% única garantizada
+                            key=f"sel_{r_id}", 
+                            disabled=es_validado_aa,
+                            label_visibility="collapsed"
                         )
                     
                     with col_sub_manual:
                         if seleccion_resp == "-- Manual --":
                             val_actual_str = str(resultado) if resultado is not None else ""
                             val_input = st.text_input(
-                                "Resultado",
-                                value=str(resultado if resultado is not None else ""),
-                                key=f"val_{orden_id}_{r_id}_{idx}",  # 👈 Clave única asegurada para el cuadro de texto
+                                "Resultado", 
+                                value=val_actual_str, 
+                                key=f"raw_{r_id}", 
+                                disabled=es_validado_aa,
                                 label_visibility="collapsed"
                             )
                             valores_temporales[r_id] = val_input
