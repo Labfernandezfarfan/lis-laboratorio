@@ -2156,28 +2156,30 @@ elif menu == "🧪 Área Analítica (Carga)":
                         
                     with col_sub_combo:
                         seleccion_resp = st.selectbox(
-                            "Prediseñado", 
-                            options=opciones_combo, 
+                            "Prediseñado",
+                            options=opciones_combo,
                             index=index_def,
-                            key=f"sel_{r_id}", 
-                            disabled=es_validado_aa,
-                            label_visibility="collapsed"
+                            key=f"sel_combo_{orden_id}_{item_c}_{r_id}_{idx}"
                         )
                     
                     with col_sub_manual:
                         if seleccion_resp == "-- Manual --":
-                            val_actual_str = str(resultado) if resultado is not None else ""
                             val_input = st.text_input(
                                 "Resultado", 
-                                value=val_actual_str, 
-                                key=f"raw_{r_id}", 
-                                disabled=es_validado_aa,
+                                value=val_a_mostrar, 
+                                key=f"val_manual_{orden_id}_{item_c}_{r_id}_{idx}", 
                                 label_visibility="collapsed"
                             )
-                            valores_temporales[r_id] = val_input
+                            valores_temporales[clave_segura] = val_input
                         else:
-                            st.text_input("Resultado", value=seleccion_resp, key=f"raw_dis_{r_id}", disabled=True, label_visibility="collapsed")
-                            valores_temporales[r_id] = seleccion_resp
+                            st.text_input(
+                                "Resultado", 
+                                value=seleccion_resp, 
+                                key=f"raw_dis_{orden_id}_{item_c}_{r_id}_{idx}", 
+                                disabled=True, 
+                                label_visibility="collapsed"
+                            )
+                            valores_temporales[clave_segura] = seleccion_resp
 
                 with col_u:
                     if unidad:
