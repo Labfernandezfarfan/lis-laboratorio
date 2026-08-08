@@ -2052,30 +2052,31 @@ elif menu == "🧪 Área Analítica (Carga)":
             st.info("Este protocolo se creó vacío.")
         else:
             valores_temporales = {}
-            mapa_codigos = {}
             
-            # Recorrido inicial para capturar valores de memoria o base de datos
+            # -----------------------------------------------------------------
+            # PASO 1: CAPTURAMOS TODOS LOS VALORES ACTUALES DE LA PANTALLA/DB
+            # -----------------------------------------------------------------
+            mapa_valores_actuales = {}
             for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
                 if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
                     continue
                 
-                codigo_str = str(item_c).strip().upper() if item_c else str(sub_item).strip().upper()
+                clave_item = str(item_c).strip().upper() if item_c else str(sub_item).strip().upper()
                 key_input_s = f"val_{orden_id}_{item_c}_{idx}"
-                val_inicial = st.session_state.get(key_input_s, str(resultado) if resultado is not None else "")
+                val_actual = st.session_state.get(key_input_s, str(resultado) if resultado is not None else "")
                 
-                mapa_codigos[codigo_str] = {'r_id': r_id, 'valor': str(val_inicial).strip()}
+                mapa_valores_actuales[clave_item] = str(val_actual).strip()
                 if sub_item:
-                    mapa_codigos[str(sub_item).strip().upper()] = {'r_id': r_id, 'valor': str(val_inicial).strip()}
+                    mapa_valores_actuales[str(sub_item).strip().upper()] = str(val_actual).strip()
 
             # -----------------------------------------------------------------
-            # MOTORES MATEMÁTICOS AUTOMÁTICOS (Hemograma, FGe y Glucosa Promedio)
+            # PASO 2: CALCULAMOS AUTOMÁTICAMENTE LOS AUTOMATISMOS
             # -----------------------------------------------------------------
-            
-            # 1. Hemograma (VCM, HCM, CHCM)
+            # A. Hemograma
             try:
-                gr = float(mapa_codigos.get("GR_01", {}).get("valor", "").replace(',', '.')) or 0
-                ht = float(mapa_codigos.get("HT_02", {}).get("valor", "").replace(',', '.')) or 0
-                hb = float(mapa_codigos.get("HB_03", {}).get("valor", "").replace(',', '.')) or 0
+                gr = float(mapa_valores_actuales.get("GR_01", "0").replace(',', '.'))
+                ht = float(mapa_valores_actuales.get("HT_02", "0").replace(',', '.'))
+                hb = float(mapa_valores_actuales.get("HB_03", "0").replace(',', '.'))
                 
                 if gr > 0 and ht > 0:
                     valores_temporales["VCM_04"] = str(round((ht * 10) / gr, 1))
@@ -2086,9 +2087,9 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception:
                 pass
 
-            # 2. Filtrado Glomerular (CKD-EPI)
+            # B. Filtrado Glomerular (CKD-EPI)
             try:
-                crea_val = mapa_codigos.get("192", {}).get("valor", "")
+                crea_val = mapa_valores_actuales.get("192", "")
                 if crea_val and str(crea_val).replace('.', '', 1).isdigit():
                     fge_resultado = calcular_fge_ckd_epi(str(crea_val).replace(',', '.'), p_edad, p_sexo)
                     if fge_resultado:
@@ -2097,25 +2098,22 @@ elif menu == "🧪 Área Analítica (Carga)":
             except Exception:
                 pass
 
-            # 3. Glucosa Promedio Estimada (GPE) a partir de Hemoglobina Glicosilada
+            # C. Glucosa Promedio Estimada (GPE)
             try:
-                # Buscamos por código común de Glicosilada (ej: Alc, glicosilada, etc.) o nombre
                 hba1c_val = ""
-                for k, v in mapa_codigos.items():
+                for k, v in mapa_valores_actuales.items():
                     if "GLICOSILADA" in k or "ALC" in k or "HBA1C" in k:
-                        hba1c_val = v.get("valor", "")
+                        hba1c_val = v
                         break
-                
                 if hba1c_val:
                     hba1c_num = float(str(hba1c_val).replace(',', '.'))
-                    # Fórmula estándar de estimación de glucosa promedio: (28.7 * HbA1c) - 46.7
                     gpe_calc = round((28.7 * hba1c_num) - 46.7, 1)
                     valores_temporales["GPE"] = str(gpe_calc)
             except Exception:
                 pass
 
             # -----------------------------------------------------------------
-            # RENDERIZADO DE FILAS Y CONTROLES
+            # PASO 3: RENDERIZADO LIMPIO Y ORDENADO DE LA GRILLA
             # -----------------------------------------------------------------
             def obtener_historial_paciente_item(paciente_id, nombre_paciente, codigo_item, orden_id_actual, limite=10):
                 if not codigo_item:
@@ -2143,6 +2141,8 @@ elif menu == "🧪 Área Analítica (Carga)":
                 return historial
 
             for idx, (r_id, perf_c, item_c, sub_item, unidad, ref, resultado, es_tit, formula, metodo, en_negrita, ub_f, orden_v, es_part) in enumerate(items):
+                
+                # Manejo estricto de títulos (para que no rompan la visual)
                 if es_tit == 'Si' or str(item_c).strip().upper() == 'T_FORM': 
                     st.markdown(f"### 📊 {sub_item.upper()}")
                     st.markdown("---")
@@ -2175,21 +2175,20 @@ elif menu == "🧪 Área Analítica (Carga)":
                     
                     with col_sub_manual:
                         clave_segura = str(item_c).strip() if item_c else str(sub_item).strip()
-                        val_a_mostrar = str(resultado if resultado is not None else "")
-                        
                         c_item_clean = str(item_c).strip().upper() if item_c else ""
                         sub_item_clean = str(sub_item).strip().upper() if sub_item else ""
                         
-                        # Inyección de valores calculados (FGe, GPE o Hemograma)
+                        # Determinamos el valor a mostrar (priorizando los cálculos automáticos si aplican)
+                        val_a_mostrar = str(resultado if resultado is not None else "")
+                        
                         if c_item_clean in valores_temporales:
                             val_a_mostrar = valores_temporales[c_item_clean]
                         elif sub_item_clean in valores_temporales:
                             val_a_mostrar = valores_temporales[sub_item_clean]
                         elif ("FGE" in c_item_clean or "FILTRADO" in sub_item_clean or c_item_clean == "1070") and "FGe" in valores_temporales:
                             val_a_mostrar = valores_temporales["FGe"]
-                        elif "GLUCOSA" in sub_item_clean or "PROMEDIO" in sub_item_clean or "GPE" in c_item_clean:
-                            if "GPE" in valores_temporales:
-                                val_a_mostrar = valores_temporales["GPE"]
+                        elif ("GLUCOSA" in sub_item_clean or "PROMEDIO" in sub_item_clean or "GPE" in c_item_clean) and "GPE" in valores_temporales:
+                            val_a_mostrar = valores_temporales["GPE"]
 
                         if seleccion_resp == "-- Manual --":
                             val_input = st.text_input("Resultado", value=val_a_mostrar, key=f"val_{orden_id}_{item_c}_{idx}", label_visibility="collapsed")
@@ -2226,9 +2225,10 @@ elif menu == "🧪 Área Analítica (Carga)":
                         st.caption("Sin historial")
 
             # -----------------------------------------------------------------
-            # BOTÓN DE GUARDADO SEGURO
+            # PASO 4: BOTÓN DE GUARDADO SEGURO Y COMPLETO
             # -----------------------------------------------------------------
-            if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa):
+            st.markdown("---")
+            if st.button("💾 Guardar Resultados", type="primary", disabled=es_validado_aa, use_container_width=True):
                 conn = conectar_db()
                 cur = conn.cursor()
                 
@@ -2237,17 +2237,16 @@ elif menu == "🧪 Área Analítica (Carga)":
                     for r_id_item, val in valores_temporales.items():
                         resultado_str = str(val) if val is not None else ""
                         
-                        # Actualización precisa usando el ID del registro o el código de ítem
+                        # Actualizamos cada ítem respetando su código exacto en la base de datos
                         cur.execute("""
                             UPDATE resultados_items 
                             SET resultado = %s 
                             WHERE orden_id = %s 
                             AND (
-                                id::text = %s 
-                                OR codigo_item::text = %s 
+                                codigo_item::text = %s 
                                 OR sub_item::text = %s
                             )
-                        """, (resultado_str, orden_id, str(r_id_item), str(r_id_item), str(r_id_item)))
+                        """, (resultado_str, orden_id, str(r_id_item), str(r_id_item)))
                         
                         filas_actualizadas += cur.rowcount
                         
